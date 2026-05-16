@@ -1,4 +1,5 @@
 import uuid
+import datetime as dt
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -10,10 +11,9 @@ from app.services.cache import CacheService
 from app.api.deps import SessionDep
 from app.models import Link, LinkCreate, LinkPublic, LinksPublic, LinkUpdate, Message
 
-#testing stuff
-import datetime as dt
 from app.external import instapaper
-#from instapaper import Instapaper as ipaper
+
+from app.core.config import settings
 
 router = APIRouter(prefix="/links", tags=["links"])
 
@@ -68,10 +68,17 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
         return bookmarks
     options = {
         "cache_data": True,
-        "cache_ttl" : 600,
+        "cache_ttl" : settings.REDIS_TTL,
         "overwrite_cache": False
     }
     bookmarks = await cache.remember("bookmarks:test", fetch_bookmarks, options)
+
+    # Step 3: format bookmarks as links
+    links = []
+    links.append(source)
+    links_public = [LinkPublic.model_validate(link) for link in links]
+
+    # Step 4: add metadata
     meta = {
         "count": len(links),
         "from_cache": bookmarks["from_cache"],
@@ -80,10 +87,6 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
         "cache_expiration": bookmarks.get("cache_expiration", None)
     }
 
-    # Step 3: format bookmarks as links
-    links = []
-    links.append(source)
-    links_public = [LinkPublic.model_validate(link) for link in links]
     return LinksPublic(data=links_public, meta = meta)
 
 
