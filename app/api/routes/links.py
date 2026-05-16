@@ -56,30 +56,22 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
         "text": "test",
         "saved_date": dt.date.today()
     }
-    #i = ipaper("27d3cc9261e2417eaa4a3f23e53c318c", "2099f2a51bdc42249551fc888b28dcf9")
-    #i.login("jonathan.stegall@gmail.com", "Xoh33scJCyyEcr")
 
     # Step 1: Get Instapaper OAuth tokens
     oauth_token, oauth_token_secret = instapaper.get_instapaper_access_token()
     session = instapaper.authenticate_instapaper(oauth_token, oauth_token_secret)
 
-    # Step 3: Fetch Instapaper bookmarks
-    #bookmarks = instapaper.get_instapaper_bookmarks(session)
+    # Step 2: Fetch Instapaper bookmarks
     #print(bookmarks)
     async def fetch_bookmarks():
         bookmarks = instapaper.get_instapaper_bookmarks(session)
         return bookmarks
-    
     options = {
         "cache_data": True,
         "cache_ttl" : 600,
         "overwrite_cache": False
     }
     bookmarks = await cache.remember("bookmarks:test", fetch_bookmarks, options)
-
-    links = []
-    links.append(source)
-
     meta = {
         "count": len(links),
         "from_cache": bookmarks["from_cache"],
@@ -88,6 +80,9 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
         "cache_expiration": bookmarks.get("cache_expiration", None)
     }
 
+    # Step 3: format bookmarks as links
+    links = []
+    links.append(source)
     links_public = [LinkPublic.model_validate(link) for link in links]
     return LinksPublic(data=links_public, meta = meta)
 
