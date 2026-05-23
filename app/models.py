@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime
+from sqlalchemy import DateTime, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
 def get_datetime_utc() -> datetime:
@@ -9,17 +9,20 @@ def get_datetime_utc() -> datetime:
 
 # Shared properties
 class LinkBase(SQLModel):
+
+    __table_args__ = (UniqueConstraint("source", "source_id", name="unique_source_item"), )
+
     source: str | None = Field(default=None, min_length=1, max_length=255)
     source_id: str | None = Field(default=None, min_length=1, max_length=255)
     type: str | None = Field(default=None, min_length=1, max_length=255)
-    date: datetime | None = Field(default=None, sa_type=DateTime(timezone=True))
+    date: datetime | None = Field(default=None, sa_type=DateTime(timezone=True)) # the date posted by the source, if any
     creator: str | None = Field(default=None, min_length=1, max_length=255)
     referrer: str | None = Field(default=None, min_length=1, max_length=255)
     url: str = Field(min_length=1, max_length=2000)
     data: str | None = Field(default=None)
     title: str = Field(min_length=1, max_length=255)
     text: str | None = Field(default=None)
-    saved_date: datetime | None = Field(default=None, sa_type=DateTime(timezone=True))
+    saved_date: datetime | None = Field(default=None, sa_type=DateTime(timezone=True)) # the date I saved the link in whatever third party I saved it in
 
 
 # Properties to receive on link creation
@@ -35,7 +38,7 @@ class LinkUpdate(LinkBase):
 # Database model, database table inferred from class name
 class Link(LinkBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    created_at: datetime | None = Field(
+    created_at: datetime | None = Field( # the date saved in this API
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True)  # type: ignore
     )
