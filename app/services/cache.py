@@ -6,9 +6,6 @@ from typing import Any, Optional, Callable, TypeVar
 from functools import wraps
 from app.core.config import settings
 
-# Redis credentials
-REDIS_TTL = settings.REDIS_TTL
-
 T = TypeVar('T')
 
 class CacheService:
@@ -29,7 +26,7 @@ class CacheService:
         self,
         key: str,
         value: Any,
-        ttl: int = REDIS_TTL
+        ttl: int = settings.REDIS_TTL
     ) -> None:
         await self.redis.setex(
             self._key(key),
@@ -50,10 +47,10 @@ class CacheService:
         options: dict[str, bool] | None = None,
     ) -> T:
         cached = await self.get(key)
-        cache_data = options.get("cache_data", False)
-        overwrite_cache = options.get("overwrite_cache", False)
+        cache_data = options.get("cache_data", settings.CACHE_DATA)
+        overwrite_cache = options.get("overwrite_cache", settings.OVERWRITE_CACHE)
         bypass_cache = options.get("bypass_cache", False)
-        cache_ttl = options.get("cache_ttl", REDIS_TTL)
+        cache_ttl = options.get("cache_ttl", settings.REDIS_TTL)
 
         data = {}
         data["cache_ttl"] = cache_ttl
@@ -71,8 +68,10 @@ class CacheService:
                 data["cache_generated"] = datetime.now()
                 await self.set(key, result, cache_ttl)
                 await self.set("{}_generated".format(key), data["cache_generated"], cache_ttl)
-
-        data["cache_expiration"] = data["cache_generated"] + timedelta(0, data["cache_ttl"])
+        
+        if "cache_generated" in data:
+            data["cache_expiration"] = data["cache_generated"] + timedelta(0, data["cache_ttl"])
+        
         return data
 
     async def flush_pattern(self, pattern: str) -> int:

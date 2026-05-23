@@ -40,6 +40,9 @@ class Settings(BaseSettings):
         list[AnyUrl] | str, BeforeValidator(parse_cors)
     ] = []
 
+    CACHE_DATA: bool = False
+    OVERWRITE_CACHE:bool = False
+
     INSTAPAPER_CONSUMER_KEY: str = ""
     INSTAPAPER_CONSUMER_SECRET: str = ""
     INSTAPAPER_USERNAME: str = ""
