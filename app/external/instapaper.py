@@ -1,4 +1,6 @@
 import uuid
+import json
+from datetime import datetime
 from requests_oauthlib import OAuth1Session
 from app.core.config import settings
 
@@ -52,23 +54,40 @@ def get_instapaper_folder_id(session, folder_name):
         raise Exception(f"Failed to fetch folders: {response.text}")
 
 
-def get_instapaper_bookmarks(session, folder_name = None):
+def get_instapaper_bookmarks(session, options = None):
     """Retrieve bookmarks, optionally from a specific Instapaper folder by its name."""
     
+    request_data = {}
+
+    limit = options.get("limit", settings.INSTAPAPER_LIMIT)
+    tag = options.get("tag", None)
+    folder_name = options.get("folder_name", None)
+    highlights = options.get("highlights", None)
+    have = options.get("have", None)
+
+    if limit is not None:
+        request_data["limit"] = limit
+
     if folder_name is not None:
         # Get the numerical ID of the folder
         folder_id = get_instapaper_folder_id(session, folder_name)
         if not folder_id:
             raise Exception(f"No such folder named {folder_name}")
+        request_data["folder_id"] = folder_id
+
+    if folder_name is None and tag is not None:
+        request_data["tag"] = tag
+
+    if have is not None:
+        if isinstance(have, str):
+            have = [have]
+        request_data["have"] = ','.join(have)
+    
+    if highlights is not None:
+        request_data["highlights"] = highlights
 
     # Fetch bookmarks
     url = "https://www.instapaper.com/api/1/bookmarks/list"
-    request_data = {
-        "limit": settings.INSTAPAPER_LIMIT
-    }
-
-    if folder_name is not None:
-        request_data.folder_id = folder_id
 
     response = session.post(url, data=request_data)
     # TODO: handle paging more than 500 bookmarks
@@ -77,6 +96,23 @@ def get_instapaper_bookmarks(session, folder_name = None):
         return response_data
     else:
         raise Exception(f"Failed to fetch bookmarks: {response.text}")
+    
+
+def format_bookmark_as_link(bookmark):
+    bookmark = {
+        "source": "instapaper",
+        "type": "bookmark",
+        "id": uuid.uuid4(),
+        "source_id": str(bookmark["bookmark_id"]),
+        "date": None,
+        "url": bookmark["url"],
+        "data": json.dumps(bookmark),
+        "title": bookmark.get("title", bookmark["url"]),
+        "text": bookmark.get("description", ""),
+        "saved_date": bookmark["time"],
+        "hash": bookmark["hash"]
+    }
+    return bookmark
 
 
 def create_instapaper_folder(session, folder_name):
@@ -87,6 +123,28 @@ def create_instapaper_folder(session, folder_name):
         return response.json()[0]["folder_id"]
     else:
         raise Exception(f"Failed to create folder: {response.text}")
+    
+
+def list_instapaper_folders(session, folder_name):
+    """Create a new Instapaper folder."""
+    url = "https://www.instapaper.com/api/1/folders/add"
+    response = session.post(url, data={"title": folder_name})
+    if response.status_code == 200:
+        return response.json()[0]["folder_id"]
+    else:
+        raise Exception(f"Failed to create folder: {response.text}")
+    
+
+def move_instapaper_bookmark(session, bookmark_id, folder_id):
+    """Move a bookmark to an Instapaper folder."""
+    api_url = "https://www.instapaper.com/api/1/bookmarks/move"
+    data = {
+        "bookmark_id": bookmark_id,
+        "folder_id": folder_id
+    }
+    response = session.post(api_url, data=data)
+    if response.status_code != 200:
+        raise Exception(f"Failed to move bookmark: {response.text}")
 
 
 def save_instapaper_bookmark(session, folder_id, url, title, description):
