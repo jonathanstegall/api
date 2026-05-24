@@ -23,6 +23,7 @@ class LinkBase(SQLModel):
     title: str = Field(min_length=1, max_length=255)
     text: str | None = Field(default=None)
     saved_date: datetime | None = Field(default=None, sa_type=DateTime(timezone=True)) # the date I saved the link in whatever third party I saved it in
+    format: str | None = Field(default=None, min_length=1, max_length=255)
 
 
 # Properties to receive on link creation

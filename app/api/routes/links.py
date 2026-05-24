@@ -13,7 +13,7 @@ from app.services.cache import CacheService
 from app.api.deps import SessionDep
 from app.models import Link, LinkCreate, LinkPublic, LinksPublic, LinkUpdate, Message
 
-from app.external import instapaper
+from app.external import instapaper, tumblr
 
 from app.core.config import settings
 
@@ -51,19 +51,39 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
         "overwrite_cache": settings.OVERWRITE_CACHE,
         "bypass_cache": False,
         "skip_existing_links": True,
-        "have": [],
-        "folder_id": "unread"
+        "instapaper": {
+            "have": [],
+            "folder_id": "unread"
+        },
+        "tumblr": {
+            "type": "posts",
+            "id": None,
+            "tag": None,
+            "limit": settings.TUMBLR_LIMIT,
+            "offset": 0,
+            "reblog_info": False,
+            "notes_info": False,
+            "filter": None,
+            "before": False,
+            "after": False,
+            "sort": "desc",
+            "npf": "npf"
+        }
     }
 
     sources = source.split(",")
     links_public = []
+    from_cache = False
+    cache_generated = None
+    cache_ttl = None
+    cache_expiration = None
     
     if options["skip_existing_links"] is True:
         for source in sources:
             existing_links = session.query(Link.source_id).filter(Link.source == source).all()
             if existing_links and source == "instapaper":
                 for link in existing_links:
-                    options["have"].append(link[0])
+                    options["instapaper"]["have"].append(link[0])
 
     if "instapaper" in sources:
         # Step 1: Get Instapaper OAuth tokens
@@ -78,8 +98,12 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
             )
             return bookmarks
 
-        cache_key = f"bookmarks:{options["folder_id"]}"
+        cache_key = f"bookmarks:{options["instapaper"]["folder_id"]}"
         bookmarks = await cache.remember(cache_key, fetch_bookmarks, options)
+        if bookmarks["from_cache"] is True:
+            from_cache = True
+            cache_ttl = cache_ttl
+            cache_generated = bookmarks.get("cache_generated", None)
         valid_bookmarks = [bookmark for bookmark in bookmarks["result"] if bookmark["type"] == "bookmark" and bookmark["title"] != ""]
 
         # Step 3: format bookmarks as links
@@ -88,15 +112,45 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
         links_instapaper = [Link.model_validate(link) for link in links]
         links_public.extend(links_instapaper)
 
+    if "tumblr" in sources:
+
+        valid_posts = []
+
+        # Step 2: Fetch Tumblr posts
+        async def fetch_posts():
+            posts = tumblr.get_tumblr_posts(
+                options = options
+            )
+            return posts
+
+        cache_key = "posts:"
+        for key, value in options["tumblr"].items():
+            cache_key += f"{key}:{value},"
+            cache_key = cache.hash_key(cache_key)
+        posts = await cache.remember(cache_key, fetch_posts, options)
+        if posts["from_cache"] is True:
+            from_cache = True
+            cache_generated = posts.get("cache_generated", None)
+            cache_ttl = posts.get("cache_ttl", None)
+            cache_expiration = posts.get("cache_expiration", None)
+        if len(posts["result"]) > 0:
+            valid_posts = [post for post in posts["result"]["response"]["posts"] if post["type"] == options["tumblr"]["type"] and post["title"] != ""]
+
+        # Step 3: format bookmarks as links
+        format_links = [tumblr.format_post_as_link(post) for post in valid_posts]
+        links = format_links
+        links_tumblr = [Link.model_validate(link) for link in links]
+        links_public.extend(links_tumblr)
+
     # Step 4: add metadata
     meta = {
         "sources": source,
         "count": len(links),
         "cache_key": cache_key,
-        "from_cache": bookmarks["from_cache"],
-        "cache_generated": bookmarks.get("cache_generated", None),
-        "cache_ttl": bookmarks["cache_ttl"],
-        "cache_expiration": bookmarks.get("cache_expiration", None)
+        "from_cache": from_cache,
+        "cache_generated": cache_generated,
+        "cache_ttl": cache_ttl,
+        "cache_expiration": cache_expiration
     }
 
     return LinksPublic(data=links_public, meta = meta)
@@ -114,7 +168,23 @@ async def save(session: SessionDep, cache: CacheService = Depends(get_cache), so
         "skip_existing_urls": True,
         "update_existing_urls": False,
         "empty_cache": True,
-        "folder_id": "unread"
+        "instapaper": {
+            "folder_id": "unread"
+        },
+        "tumblr": {
+            "type": "posts",
+            "id": None,
+            "tag": None,
+            "limit": settings.TUMBLR_LIMIT,
+            "offset": 0,
+            "reblog_info": False,
+            "notes_info": False,
+            "filter": None,
+            "before": False,
+            "after": False,
+            "sort": "desc",
+            "npf": "npf"
+        }
     }
 
     bookmarks = []
@@ -122,19 +192,19 @@ async def save(session: SessionDep, cache: CacheService = Depends(get_cache), so
     links_public = []
 
     # empty callback
-    def fetch_bookmarks():
+    def fetch_links():
         return []
 
     meta = {}
-    cache_key = f"bookmarks:{options["folder_id"]}"
-    
-    if options["check_cache"] is True:
-        bookmarks = await cache.remember(cache_key, fetch_bookmarks, options)
-        valid_bookmarks = [bookmark for bookmark in bookmarks["result"] if bookmark["type"] == "bookmark" and bookmark["title"] != ""]
-        if len(valid_bookmarks) > 0:
-            meta["from_cache"] = True
 
     if "instapaper" in sources:
+        cache_key = f"bookmarks:{options["instapaper"]["folder_id"]}"
+    
+        if options["check_cache"] is True:
+            bookmarks = await cache.remember(cache_key, fetch_links, options)
+            valid_bookmarks = [bookmark for bookmark in bookmarks["result"] if bookmark["type"] == "bookmark" and bookmark["title"] != ""]
+            if len(valid_bookmarks) > 0:
+                meta["from_cache"] = True
 
         if options["check_source"] is True:
             bookmarks = await scan_for_links(session, cache, "instapaper")
@@ -155,7 +225,42 @@ async def save(session: SessionDep, cache: CacheService = Depends(get_cache), so
         # merge with overall links
         links_public.extend(links)
 
+    if "tumblr" in sources:
+        valid_posts = []
+        cache_key = "posts:"
+        for key, value in options["tumblr"].items():
+            cache_key += f"{key}:{value},"
+            cache_key = cache.hash_key(cache_key)
+
+        if options["check_cache"] is True:
+            posts = await cache.remember(cache_key, fetch_links, options)
+            if len(posts["result"]) > 0:
+                valid_posts = [post for post in posts["result"]["response"]["posts"] if post["type"] == options["tumblr"]["type"] and post["title"] != ""]
+                if len(valid_posts) > 0:
+                    meta["from_cache"] = True
+
+        if options["check_source"] is True:
+            posts = await scan_for_links(session, cache, "tumblr")
+            format_links = [tumblr.format_post_as_link(post) for post in valid_posts]
+            source_posts = []
+            for item in format_links:
+                if item not in valid_posts:
+                    source_posts.append(item)
+
+        # format posts as links
+        format_links = [tumblr.format_post_as_link(post) for post in valid_posts]
+        links = []
+        for link in format_links:
+            try:
+                links.append(crud.create_link(session=session, link_create=link))
+            except:
+                pass
+        # merge with overall links
+        links_public.extend(links)
+
     meta["count"] = len(links_public)
+    if cache_key:
+        meta["cache_key"] = cache_key
     if options["empty_cache"] is True:
         await cache.delete(cache_key)
 

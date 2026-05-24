@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     INSTAPAPER_PASSWORD: str = ""
     INSTAPAPER_LIMIT: int = 25
 
+    TUMBLR_CONSUMER_KEY: str = ""
+    TUMBLR_CONSUMER_SECRET: str = ""
+    TUMBLR_BLOG_ID: str = ""
+    TUMBLR_LIMIT: int = 25
+
     REDIS_URL: str = ""
     REDIS_TTL: int = 300
 
