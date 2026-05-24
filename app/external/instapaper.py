@@ -125,14 +125,20 @@ def create_instapaper_folder(session, folder_name):
         raise Exception(f"Failed to create folder: {response.text}")
     
 
-def list_instapaper_folders(session, folder_name):
-    """Create a new Instapaper folder."""
-    url = "https://www.instapaper.com/api/1/folders/add"
-    response = session.post(url, data={"title": folder_name})
+def list_instapaper_folders(session):
+    """List all Instapaper folders."""
+
+    # response is like this
+    # [{'type': 'folder', 'folder_id': 5367019, 'title': 'test folder', 'display_title': 'test folder', 'slug': 'test-folder', 'sync_to_mobile': 1, 'position': 1779640105, 'public': 0, 'count': 1}]
+
+
+    url = "https://www.instapaper.com/api/1/folders/list"
+    response = session.post(url)
     if response.status_code == 200:
-        return response.json()[0]["folder_id"]
+        response_data = response.json()
+        return response_data
     else:
-        raise Exception(f"Failed to create folder: {response.text}")
+        raise Exception(f"Failed to fetch folders: {response.text}")
     
 
 def move_instapaper_bookmark(session, bookmark_id, folder_id):
