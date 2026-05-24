@@ -5,6 +5,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import col, func, select
 
+from app import crud
+
 from app.dependencies import get_cache
 from app.services.cache import CacheService
 
@@ -48,7 +50,7 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
         "cache_ttl" : settings.REDIS_TTL,
         "overwrite_cache": settings.OVERWRITE_CACHE,
         "bypass_cache": False,
-        "skip_existing_links": False,
+        "skip_existing_links": True,
         "have": [],
         "folder_id": "unread"
     }
@@ -80,9 +82,6 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
         bookmarks = await cache.remember(cache_key, fetch_bookmarks, options)
         valid_bookmarks = [bookmark for bookmark in bookmarks["result"] if bookmark["type"] == "bookmark" and bookmark["title"] != ""]
 
-        folders = instapaper.list_instapaper_folders(session=instapaper_session)
-        print(folders)
-
         # Step 3: format bookmarks as links
         format_links = [instapaper.format_bookmark_as_link(bookmark) for bookmark in valid_bookmarks]
         links = format_links
@@ -99,6 +98,66 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
         "cache_ttl": bookmarks["cache_ttl"],
         "cache_expiration": bookmarks.get("cache_expiration", None)
     }
+
+    return LinksPublic(data=links_public, meta = meta)
+
+
+@router.get("/save", response_model=LinksPublic)
+async def save(session: SessionDep, cache: CacheService = Depends(get_cache), source: str | None = None) -> Any:
+    """
+    Save links.
+    """
+
+    options = {
+        "check_cache": True,
+        "check_source": True,
+        "skip_existing_urls": True,
+        "update_existing_urls": False,
+        "empty_cache": True,
+        "folder_id": "unread"
+    }
+
+    bookmarks = []
+    sources = source.split(",")
+    links_public = []
+
+    # empty callback
+    def fetch_bookmarks():
+        return []
+
+    meta = {}
+    cache_key = f"bookmarks:{options["folder_id"]}"
+    
+    if options["check_cache"] is True:
+        bookmarks = await cache.remember(cache_key, fetch_bookmarks, options)
+        valid_bookmarks = [bookmark for bookmark in bookmarks["result"] if bookmark["type"] == "bookmark" and bookmark["title"] != ""]
+        if len(valid_bookmarks) > 0:
+            meta["from_cache"] = True
+
+    if "instapaper" in sources:
+
+        if options["check_source"] is True:
+            bookmarks = await scan_for_links(session, cache, "instapaper")
+            format_links = [instapaper.format_bookmark_as_link(bookmark) for bookmark in valid_bookmarks]
+            source_bookmarks = []
+            for item in format_links:
+                if item not in valid_bookmarks:
+                    source_bookmarks.append(item)
+
+        # format bookmarks as links
+        format_links = [instapaper.format_bookmark_as_link(bookmark) for bookmark in valid_bookmarks]
+        links = []
+        for link in format_links:
+            try:
+                links.append(crud.create_link(session=session, link_create=link))
+            except:
+                pass
+        # merge with overall links
+        links_public.extend(links)
+
+    meta["count"] = len(links_public)
+    if options["empty_cache"] is True:
+        await cache.delete(cache_key)
 
     return LinksPublic(data=links_public, meta = meta)
 

@@ -1,5 +1,6 @@
 import inspect
 import json
+import hashlib
 from datetime import datetime, timedelta
 from redis.asyncio import Redis
 from typing import Any, Optional, Callable, TypeVar
@@ -15,6 +16,10 @@ class CacheService:
 
     def _key(self, name: str) -> str:
         return f"{self.prefix}:{name}"
+    
+    def hash_key(self, key_data: str) -> str:
+        key_hash = hashlib.md5(key_data.encode()).hexdigest()
+        return f"{self.prefix}:{key_hash}"
 
     async def get(self, key: str) -> Optional[Any]:
         data = await self.redis.get(self._key(key))
