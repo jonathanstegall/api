@@ -40,47 +40,60 @@ def read_links(
 @router.get("/scan", response_model=LinksPublic)
 async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_cache), source: str | None = None) -> Any:
     """
-    Get link by ID.
+    Get links.
     """
-    source = {
-        "id": "7037efa8-3c08-40fb-9aab-4b00d7b0c4a7",
-        "source": source,
-        "source_id": "test",
-        "type": "test",
-        "date": dt.date.today(),
-        "creator": "test",
-        "referrer": "test",
-        "url": "test",
-        "data": "test",
-        "title": "test",
-        "text": "test",
-        "saved_date": dt.date.today()
-    }
 
-    # Step 1: Get Instapaper OAuth tokens
-    oauth_token, oauth_token_secret = instapaper.get_instapaper_access_token()
-    session = instapaper.authenticate_instapaper(oauth_token, oauth_token_secret)
-
-    # Step 2: Fetch Instapaper bookmarks
-    #print(bookmarks)
-    async def fetch_bookmarks():
-        bookmarks = instapaper.get_instapaper_bookmarks(session)
-        return bookmarks
     options = {
-        "cache_data": True,
+        "cache_data": settings.CACHE_DATA,
         "cache_ttl" : settings.REDIS_TTL,
-        "overwrite_cache": False
+        "overwrite_cache": settings.OVERWRITE_CACHE,
+        "bypass_cache": False,
+        "skip_existing_links": False,
+        "have": [],
+        "folder_id": "unread"
     }
-    bookmarks = await cache.remember("bookmarks:test", fetch_bookmarks, options)
 
-    # Step 3: format bookmarks as links
-    links = []
-    links.append(source)
-    links_public = [LinkPublic.model_validate(link) for link in links]
+    sources = source.split(",")
+    links_public = []
+    
+    if options["skip_existing_links"] is True:
+        for source in sources:
+            existing_links = session.query(Link.source_id).filter(Link.source == source).all()
+            if existing_links and source == "instapaper":
+                for link in existing_links:
+                    options["have"].append(link[0])
+
+    if "instapaper" in sources:
+        # Step 1: Get Instapaper OAuth tokens
+        oauth_token, oauth_token_secret = instapaper.get_instapaper_access_token()
+        instapaper_session = instapaper.authenticate_instapaper(oauth_token, oauth_token_secret)
+
+        # Step 2: Fetch Instapaper bookmarks
+        async def fetch_bookmarks():
+            bookmarks = instapaper.get_instapaper_bookmarks(
+                session = instapaper_session,
+                options = options
+            )
+            return bookmarks
+
+        cache_key = f"bookmarks:{options["folder_id"]}"
+        bookmarks = await cache.remember(cache_key, fetch_bookmarks, options)
+        valid_bookmarks = [bookmark for bookmark in bookmarks["result"] if bookmark["type"] == "bookmark" and bookmark["title"] != ""]
+
+        folders = instapaper.list_instapaper_folders(session=instapaper_session)
+        print(folders)
+
+        # Step 3: format bookmarks as links
+        format_links = [instapaper.format_bookmark_as_link(bookmark) for bookmark in valid_bookmarks]
+        links = format_links
+        links_instapaper = [Link.model_validate(link) for link in links]
+        links_public.extend(links_instapaper)
 
     # Step 4: add metadata
     meta = {
+        "sources": source,
         "count": len(links),
+        "cache_key": cache_key,
         "from_cache": bookmarks["from_cache"],
         "cache_generated": bookmarks.get("cache_generated", None),
         "cache_ttl": bookmarks["cache_ttl"],
