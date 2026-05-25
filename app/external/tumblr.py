@@ -17,9 +17,6 @@ def get_tumblr_posts(options = None):
     # root
     url = f"https://api.tumblr.com/v2/blog/{TUMBLR_BLOG_ID}/posts"
 
-    # Base link
-    url = f"https://api.tumblr.com/v2/blog/{TUMBLR_BLOG_ID}/posts/?api_key={TUMBLR_CONSUMER_KEY}"
-
     type = options.get("type", None)
     id = options.get("id", None)
     tag = options.get("tag", None)
@@ -72,7 +69,6 @@ def get_tumblr_posts(options = None):
     if npf != "npf":
         url = url + "&npf=" + npf
 
-    print(url)
     response = requests.get(url).json()
     if response["meta"]["status"] == 200:
         return response
