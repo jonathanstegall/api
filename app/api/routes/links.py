@@ -56,7 +56,7 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
             "folder_id": "unread"
         },
         "tumblr": {
-            "type": "posts",
+            "type": "link",
             "id": None,
             "tag": None,
             "limit": settings.TUMBLR_LIMIT,
@@ -72,33 +72,38 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
     }
 
     sources = source.split(",")
+    friendly_cache_key = ""
     links_public = []
     from_cache = False
     cache_generated = None
     cache_ttl = None
     cache_expiration = None
     
+    # skip existing links
     if options["skip_existing_links"] is True:
         for source in sources:
             existing_links = session.query(Link.source_id).filter(Link.source == source).all()
             if existing_links and source == "instapaper":
                 for link in existing_links:
                     options["instapaper"]["have"].append(link[0])
+            if existing_links and source == "tumblr":
+                options["tumblr"]["offset"] = len(existing_links)
 
     if "instapaper" in sources:
-        # Step 1: Get Instapaper OAuth tokens
+        # authenticate Instapaper
         oauth_token, oauth_token_secret = instapaper.get_instapaper_access_token()
         instapaper_session = instapaper.authenticate_instapaper(oauth_token, oauth_token_secret)
 
-        # Step 2: Fetch Instapaper bookmarks
+        # fetch Instapaper bookmarks
         async def fetch_bookmarks():
             bookmarks = instapaper.get_instapaper_bookmarks(
                 session = instapaper_session,
-                options = options
+                options = options["instapaper"]
             )
             return bookmarks
 
         cache_key = f"bookmarks:{options["instapaper"]["folder_id"]}"
+        friendly_cache_key = cache_key
         bookmarks = await cache.remember(cache_key, fetch_bookmarks, options)
         if bookmarks["from_cache"] is True:
             from_cache = True
@@ -106,7 +111,7 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
             cache_generated = bookmarks.get("cache_generated", None)
         valid_bookmarks = [bookmark for bookmark in bookmarks["result"] if bookmark["type"] == "bookmark" and bookmark["title"] != ""]
 
-        # Step 3: format bookmarks as links
+        # format bookmarks as links
         format_links = [instapaper.format_bookmark_as_link(bookmark) for bookmark in valid_bookmarks]
         links = format_links
         links_instapaper = [Link.model_validate(link) for link in links]
@@ -116,17 +121,17 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
 
         valid_posts = []
 
-        # Step 2: Fetch Tumblr posts
+        # fetch Tumblr posts
         async def fetch_posts():
             posts = tumblr.get_tumblr_posts(
-                options = options
+                options = options["tumblr"]
             )
             return posts
 
-        cache_key = "posts:"
+        friendly_cache_key = "posts:"
         for key, value in options["tumblr"].items():
-            cache_key += f"{key}:{value},"
-            cache_key = cache.hash_key(cache_key)
+            friendly_cache_key += f"{key}:{value},"
+        cache_key = cache.hash_key(friendly_cache_key)
         posts = await cache.remember(cache_key, fetch_posts, options)
         if posts["from_cache"] is True:
             from_cache = True
@@ -136,17 +141,17 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
         if len(posts["result"]) > 0:
             valid_posts = [post for post in posts["result"]["response"]["posts"] if post["type"] == options["tumblr"]["type"] and post["title"] != ""]
 
-        # Step 3: format bookmarks as links
+        # format bookmarks as links
         format_links = [tumblr.format_post_as_link(post) for post in valid_posts]
         links = format_links
         links_tumblr = [Link.model_validate(link) for link in links]
         links_public.extend(links_tumblr)
 
-    # Step 4: add metadata
+    # add metadata
     meta = {
         "sources": source,
         "count": len(links),
-        "cache_key": cache_key,
+        "cache_key": friendly_cache_key,
         "from_cache": from_cache,
         "cache_generated": cache_generated,
         "cache_ttl": cache_ttl,
@@ -172,7 +177,7 @@ async def save(session: SessionDep, cache: CacheService = Depends(get_cache), so
             "folder_id": "unread"
         },
         "tumblr": {
-            "type": "posts",
+            "type": "link",
             "id": None,
             "tag": None,
             "limit": settings.TUMBLR_LIMIT,
@@ -190,6 +195,7 @@ async def save(session: SessionDep, cache: CacheService = Depends(get_cache), so
     bookmarks = []
     sources = source.split(",")
     links_public = []
+    friendly_cache_key = ""
 
     # empty callback
     def fetch_links():
@@ -199,6 +205,7 @@ async def save(session: SessionDep, cache: CacheService = Depends(get_cache), so
 
     if "instapaper" in sources:
         cache_key = f"bookmarks:{options["instapaper"]["folder_id"]}"
+        friendly_cache_key = cache_key
     
         if options["check_cache"] is True:
             bookmarks = await cache.remember(cache_key, fetch_links, options)
@@ -226,11 +233,17 @@ async def save(session: SessionDep, cache: CacheService = Depends(get_cache), so
         links_public.extend(links)
 
     if "tumblr" in sources:
+
+        # match offset
+        existing_links = session.query(Link.source_id).filter(Link.source == "tumblr").all()
+        if existing_links:
+            options["tumblr"]["offset"] = len(existing_links)
+
         valid_posts = []
-        cache_key = "posts:"
+        friendly_cache_key = "posts:"
         for key, value in options["tumblr"].items():
-            cache_key += f"{key}:{value},"
-            cache_key = cache.hash_key(cache_key)
+            friendly_cache_key += f"{key}:{value},"
+        cache_key = cache.hash_key(friendly_cache_key)
 
         if options["check_cache"] is True:
             posts = await cache.remember(cache_key, fetch_links, options)
@@ -247,6 +260,8 @@ async def save(session: SessionDep, cache: CacheService = Depends(get_cache), so
                 if item not in valid_posts:
                     source_posts.append(item)
 
+        valid_posts.extend(source_posts)
+
         # format posts as links
         format_links = [tumblr.format_post_as_link(post) for post in valid_posts]
         links = []
@@ -254,13 +269,14 @@ async def save(session: SessionDep, cache: CacheService = Depends(get_cache), so
             try:
                 links.append(crud.create_link(session=session, link_create=link))
             except:
+                #raise ValueError("something brke")
                 pass
         # merge with overall links
         links_public.extend(links)
 
     meta["count"] = len(links_public)
-    if cache_key:
-        meta["cache_key"] = cache_key
+    if friendly_cache_key:
+        meta["cache_key"] = friendly_cache_key
     if options["empty_cache"] is True:
         await cache.delete(cache_key)
 

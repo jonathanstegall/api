@@ -14,6 +14,9 @@ TUMBLR_LIMIT = settings.TUMBLR_LIMIT
 def get_tumblr_posts(options = None):
     """Retrieve posts."""
 
+    # root
+    url = f"https://api.tumblr.com/v2/blog/{TUMBLR_BLOG_ID}/posts"
+
     # Base link
     url = f"https://api.tumblr.com/v2/blog/{TUMBLR_BLOG_ID}/posts/?api_key={TUMBLR_CONSUMER_KEY}"
 
@@ -31,7 +34,9 @@ def get_tumblr_posts(options = None):
     npf = options.get("npf", "desc")
 
     if type is not None:
-        url = f"https://api.tumblr.com/v2/blog/{TUMBLR_BLOG_ID}/posts/{options.type}?api_key={TUMBLR_CONSUMER_KEY}"
+        url = url + "/" + type + "/"
+    
+    url = url + "?api_key=" + TUMBLR_CONSUMER_KEY
 
     if tag is not None:
         if isinstance(tag, str):
@@ -67,17 +72,32 @@ def get_tumblr_posts(options = None):
     if npf != "npf":
         url = url + "&npf=" + npf
 
+    print(url)
     response = requests.get(url).json()
     if response["meta"]["status"] == 200:
         return response
     else:
-        raise Exception(f"Failed to fetch posts: {response["meta"]["msg"]}")
+        raise Exception(f"Failed to fetch posts: {response["meta"]["msg"]} with status {response["meta"]["status"]}")
     
 
 def format_post_as_link(post):
 
     format = '%Y-%m-%d %H:%M:%S %Z'
-    post_date = datetime.strptime(post["date"], format)
+    
+    post_date = None
+    if post["date"]:
+        post_date = datetime.strptime(post["date"], format)
+
+    post_data = ""
+    try:
+        post_data = json.dumps(post)
+    except:
+        pass
+
+    creator = ""
+    publisher = post.get("publisher", None)
+    if publisher is not None:
+        creator = post["publisher"]
 
     post = {
         "source": "tumblr",
@@ -86,12 +106,12 @@ def format_post_as_link(post):
         "source_id": str(post["id"]),
         "date": None,
         "url": post["url"],
-        "data": json.dumps(post),
+        "data": post_data,
         "title": post.get("title", post["url"]),
         "text": post.get("description", ""),
         "saved_date": post_date,
         "tags": post["tags"],
         "format": post["format"],
-        "creator": post["publisher"]
+        "creator": creator
     }
     return post
