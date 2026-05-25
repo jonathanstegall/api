@@ -13,7 +13,7 @@ from app.services.cache import CacheService
 from app.api.deps import SessionDep
 from app.models import Link, LinkCreate, LinkPublic, LinksPublic, LinkUpdate, Message
 
-from app.external import instapaper, tumblr
+from app.external import raindrop, instapaper, tumblr
 
 from app.core.config import settings
 
@@ -51,6 +51,16 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
         "overwrite_cache": settings.OVERWRITE_CACHE,
         "bypass_cache": False,
         "skip_existing_links": True,
+        "raindrop": {
+            "id": 0,
+            "collectionId": 0,
+            "search": "",
+            "sort": "-created",
+            "page": None,
+            "perpage": settings.RAINDROP_LIMIT,
+            "ids": [],
+            "nested": False
+        },
         "instapaper": {
             "have": [],
             "folder_id": "unread"
@@ -89,6 +99,44 @@ async def scan_for_links(session: SessionDep, cache: CacheService = Depends(get_
             if existing_links and source == "tumblr":
                 options["tumblr"]["offset"] = len(existing_links)
 
+    if "raindrop" in sources:
+        
+        valid_raindrops = []
+        
+        # fetch raindrops
+        async def fetch_raindrops():
+            if options["raindrop"]["id"] > 0:
+                raindrops = raindrop.get_raindrop(
+                    options = options["raindrop"]
+                )
+            else:
+                raindrops = raindrop.get_raindrops(
+                    options = options["raindrop"]
+                )
+            return raindrops
+
+        friendly_cache_key = "raindrops:"
+        for key, value in options["raindrop"].items():
+            friendly_cache_key += f"{key}:{value},"
+        cache_key = cache.hash_key(friendly_cache_key)
+        raindrops = await cache.remember(cache_key, fetch_raindrops, options)
+        if raindrops["from_cache"] is True:
+            from_cache = True
+            cache_generated = raindrops.get("cache_generated", None)
+            cache_ttl = raindrops.get("cache_ttl", None)
+            cache_expiration = raindrops.get("cache_expiration", None)
+        if "item" in raindrops["result"]:
+            valid_raindrops.append(raindrops["result"]["item"])
+        if "items" in raindrops["result"]:
+            valid_raindrops = [raindrop_item for raindrop_item in raindrops["result"]["items"] if raindrop_item["title"] != ""]
+
+        # format raindrop items as links
+        format_links = [raindrop.format_raindrop_as_link(raindrop_item) for raindrop_item in valid_raindrops]
+        links = format_links
+        links_raindrop = [Link.model_validate(link) for link in links]
+        links_public.extend(links_raindrop)
+
+    
     if "instapaper" in sources:
         # authenticate Instapaper
         oauth_token, oauth_token_secret = instapaper.get_instapaper_access_token()

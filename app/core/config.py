@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     CACHE_DATA: bool = False
     OVERWRITE_CACHE:bool = False
 
+    RAINDROP_CLIENT_ID: str = ""
+    RAINDROP_CLIENT_SECRET: str = ""
+    RAINDROP_ACCESS_TOKEN: str = ""
+    RAINDROP_LIMIT: int = 50
+
     INSTAPAPER_CONSUMER_KEY: str = ""
     INSTAPAPER_CONSUMER_SECRET: str = ""
     INSTAPAPER_USERNAME: str = ""
