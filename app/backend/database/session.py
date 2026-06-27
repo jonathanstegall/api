@@ -7,7 +7,7 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 
-from app.backend.config import config
+from app.config import config
 
 url_object = URL.create(
     config.database.dialect,

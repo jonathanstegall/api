@@ -1,25 +1,9 @@
-from pydantic import BaseModel
 from pydantic_settings import (
     BaseSettings,
     SettingsConfigDict,
 )
 
-
-class DatabaseConfig(BaseModel):
-    """Backend database configuration parameters.
-
-    Attributes:
-        dsn:
-            DSN for target database.
-    """
-
-    dsn: str = "postgresql://user:password@host:port/dbname"
-    dialect: str = "postgresql"
-    host: str = "host"
-    port: int | None = None
-    user: str = "user"
-    password: str | None = None
-    name: str = "name"
+from app.backend.database.config import DatabaseConfig
 
 
 class Config(BaseSettings):
