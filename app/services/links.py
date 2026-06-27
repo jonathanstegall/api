@@ -13,12 +13,12 @@ from app.services.base import (
 
 class LinkService(BaseService):
     def get_link(self, id: uuid.UUID) -> LinkSchema:
-        """Get movie by ID."""
+        """Get link by ID."""
 
         return LinkDataManager(self.session).get_link(id)
 
     def get_links(self, url: str, source: str) -> List[LinkSchema]:
-        """Select movies with filter by ``year`` and ``rating``."""
+        """Select links with filter by ``url`` and ``source``."""
 
         return LinkDataManager(self.session).get_links(url, source)
 

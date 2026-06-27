@@ -36,6 +36,6 @@ async def get_links(
     source: str,
     session: Session = Depends(create_session),
 ) -> List[LinkSchema]:
-    """Get movies by ``year`` and ``rating``."""
+    """Get links by ``url`` and ``source``."""
 
     return LinkService(session).get_links(url, source)

@@ -14,6 +14,12 @@ class DatabaseConfig(BaseModel):
     """
 
     dsn: str = "postgresql://user:password@host:port/dbname"
+    dialect: str = "postgresql"
+    host: str = "host"
+    port: int | None = None
+    user: str = "user"
+    password: str | None = None
+    name: str = "name"
 
 
 class Config(BaseSettings):
@@ -36,11 +42,9 @@ class Config(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        env_prefix="MYAPI_",
         env_nested_delimiter="__",
         case_sensitive=False,
         extra='ignore'
     )
-
 
 config = Config()

@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from typing import Iterator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, URL
 from sqlalchemy.orm import (
     Session,
     sessionmaker,
@@ -9,10 +9,18 @@ from sqlalchemy.orm import (
 
 from app.backend.config import config
 
+url_object = URL.create(
+    config.database.dialect,
+    username=config.database.user,
+    password=config.database.password,
+    host=config.database.host,
+    port=config.database.port,
+    database=config.database.name
+)
 
 # create session factory to generate new database sessions
 SessionFactory = sessionmaker(
-    bind=create_engine(config.database.dsn),
+    bind=create_engine(url_object),
     autocommit=False,
     autoflush=False,
     expire_on_commit=False,
