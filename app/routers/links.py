@@ -7,7 +7,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
-from app.backend.session import create_session
+from app.backend.database.session import create_session
 #from app.const import (
 #    MOVIES_TAGS,
 #    MOVIES_URL,
