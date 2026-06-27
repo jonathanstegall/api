@@ -8,6 +8,7 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 from app.backend.database.session import create_session
+
 #from app.const import (
 #    MOVIES_TAGS,
 #    MOVIES_URL,
@@ -21,11 +22,11 @@ router = APIRouter(prefix="/links")
 
 
 @router.get("/", response_model=LinkSchema)
-async def get_movie(
+async def get_link(
     id: uuid.UUID,
     session: Session = Depends(create_session),
 ) -> LinkSchema:
-    """Get movie by ID."""
+    """Get link by ID."""
 
     return LinkService(session).get_link(id)
 

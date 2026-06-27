@@ -13,11 +13,8 @@ class Config(BaseSettings):
     from environment variables and ``.env`` file.
 
     Attributes:
-        database:
-            Database configuration settings.
-            Instance of :class:`app.backend.config.DatabaseConfig`.
-        token_key:
-            Random secret key used to sign JWT tokens.
+        database: Instance of :class:`app.backend.database.config.DatabaseConfig`.
+        token_key: Random secret key used to sign JWT tokens.
     """
 
     database: DatabaseConfig = DatabaseConfig()
