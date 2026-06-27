@@ -2,25 +2,18 @@ import uuid
 import json
 import requests
 from datetime import datetime
-from app.core.config import settings
-
-# Tumblr credentials
-TUMBLR_CONSUMER_KEY = settings.TUMBLR_CONSUMER_KEY
-TUMBLR_CONSUMER_SECRET = settings.TUMBLR_CONSUMER_SECRET
-TUMBLR_BLOG_ID = settings.TUMBLR_BLOG_ID
-TUMBLR_LIMIT = settings.TUMBLR_LIMIT
-
+from app.config import config
 
 def get_tumblr_posts(options = None):
     """Retrieve posts."""
 
     # root
-    url = f"https://api.tumblr.com/v2/blog/{TUMBLR_BLOG_ID}/posts"
+    url = f"https://api.tumblr.com/v2/blog/{config.tumblr.blog_id}/posts"
 
     type = options.get("type", None)
     id = options.get("id", None)
     tag = options.get("tag", None)
-    limit = options.get("limit", settings.TUMBLR_LIMIT)
+    limit = options.get("limit", config.tumblr.limit)
     offset = options.get("offset", 0)
     reblog_info = options.get("reblog_info", False)
     notes_info = options.get("notes_info", False)
@@ -33,7 +26,7 @@ def get_tumblr_posts(options = None):
     if type is not None:
         url = url + "/" + type + "/"
     
-    url = url + "?api_key=" + TUMBLR_CONSUMER_KEY
+    url = url + "?api_key=" + config.tumblr.consumer_key
 
     if tag is not None:
         if isinstance(tag, str):

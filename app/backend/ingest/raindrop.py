@@ -2,13 +2,11 @@ import uuid
 import json
 import requests
 from datetime import datetime
-from app.core.config import settings
+from app.config import config
 
 # Raindrop credentials
-RAINDROP_CLIENT_ID = settings.RAINDROP_CLIENT_ID
-RAINDROP_CLIENT_SECRET = settings.RAINDROP_CLIENT_SECRET
-RAINDROP_ACCESS_TOKEN = settings.RAINDROP_ACCESS_TOKEN
-RAINDROP_LIMIT = settings.RAINDROP_LIMIT
+RAINDROP_CLIENT_ID = config.raindrop.client_id
+RAINDROP_CLIENT_SECRET = config.raindrop.client_secret
 
 
 def get_raindrop(options = None):
@@ -22,7 +20,7 @@ def get_raindrop(options = None):
     # headers
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {settings.RAINDROP_ACCESS_TOKEN}"
+        "Authorization": f"Bearer {config.raindrop.access_token}"
     }
 
     # api call
@@ -44,13 +42,13 @@ def get_raindrops(options = None):
     # headers
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {settings.RAINDROP_ACCESS_TOKEN}"
+        "Authorization": f"Bearer {config.raindrop.access_token}"
     }
 
     search = options.get("search", "")
     sort = options.get("sort", "-created")
     page = options.get("page", None)
-    perpage = options.get("perpage", settings.RAINDROP_LIMIT)
+    perpage = options.get("perpage", config.raindrop.limit)
     ids = options.get("reblog_info", [])
     nested = options.get("nested", False)
 
@@ -68,8 +66,8 @@ def get_raindrops(options = None):
     if page is not None:
         payload["page"] = page
 
-    if perpage > settings.RAINDROP_LIMIT:
-        perpage = settings.RAINDROP_LIMIT
+    if perpage > config.raindrop.limit:
+        perpage = config.raindrop.limit
     payload["perpage"] = perpage
 
     if ids:

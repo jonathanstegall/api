@@ -2,24 +2,18 @@ import uuid
 import json
 from datetime import datetime
 from requests_oauthlib import OAuth1Session
-from app.core.config import settings
-
-# Instapaper credentials
-INSTAPAPER_CONSUMER_KEY = settings.INSTAPAPER_CONSUMER_KEY
-INSTAPAPER_CONSUMER_SECRET = settings.INSTAPAPER_CONSUMER_SECRET
-INSTAPAPER_USERNAME = settings.INSTAPAPER_USERNAME
-INSTAPAPER_PASSWORD = settings.INSTAPAPER_PASSWORD
+from app.config import config
 
 
 def get_instapaper_access_token():
     """Obtain OAuth access token using xAuth."""
     url = "https://www.instapaper.com/api/1/oauth/access_token"
     oauth = OAuth1Session(
-        INSTAPAPER_CONSUMER_KEY, client_secret=INSTAPAPER_CONSUMER_SECRET
+        config.instapaper.consumer_key, client_secret=config.instapaper.consumer_secret
     )
     data = {
-        "x_auth_username": INSTAPAPER_USERNAME,
-        "x_auth_password": INSTAPAPER_PASSWORD,
+        "x_auth_username": config.instapaper.username,
+        "x_auth_password": config.instapaper.password,
         "x_auth_mode": "client_auth",
     }
     response = oauth.post(url, data=data)
@@ -33,8 +27,8 @@ def get_instapaper_access_token():
 def authenticate_instapaper(oauth_token, oauth_token_secret):
     """Authenticate with Instapaper using OAuth."""
     return OAuth1Session(
-        INSTAPAPER_CONSUMER_KEY,
-        client_secret=INSTAPAPER_CONSUMER_SECRET,
+        config.instapaper.consumer_key,
+        client_secret=config.instapaper.consumer_secret,
         resource_owner_key=oauth_token,
         resource_owner_secret=oauth_token_secret,
     )
@@ -59,7 +53,7 @@ def get_instapaper_bookmarks(session, options = None):
     
     request_data = {}
 
-    limit = options.get("limit", settings.INSTAPAPER_LIMIT)
+    limit = options.get("limit", config.instapaper.limit)
     tag = options.get("tag", None)
     folder_name = options.get("folder_name", None)
     highlights = options.get("highlights", None)

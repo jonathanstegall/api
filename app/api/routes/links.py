@@ -2,6 +2,7 @@ import uuid
 import datetime as dt
 from typing import Any
 
+from app.backend.ingest import instapaper, raindrop
 from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import col, func, select
 
@@ -13,7 +14,7 @@ from app.services.cache import CacheService
 from app.api.deps import SessionDep
 from app.models import Link, LinkCreate, LinkPublic, LinksPublic, LinkUpdate, Message
 
-from app.external import raindrop, instapaper, tumblr
+from app.backend.ingest import tumblr
 
 from app.core.config import settings
 
