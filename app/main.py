@@ -1,19 +1,14 @@
 from fastapi import FastAPI
 
-from app.const import (
-    OPEN_API_DESCRIPTION,
-    OPEN_API_TITLE,
-)
+from app.config import config
 from app.routers import (
     links,
 )
-from app.version import __version__
-
 
 app = FastAPI(
-    title=OPEN_API_TITLE,
-    description=OPEN_API_DESCRIPTION,
-    version=__version__,
+    title=config.app_name,
+    description=config.app_description,
+    version=config.app_version,
     swagger_ui_parameters={"defaultModelsExpandDepth": -1},
 )
 
