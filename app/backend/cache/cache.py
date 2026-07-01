@@ -1,3 +1,5 @@
+import hashlib
+from typing import Any, Callable, Dict, Optional, Tuple
 import json
 import redis
 from typing import Optional, Type, TypeVar
@@ -9,8 +11,14 @@ T = TypeVar("T")
 
 redis_client = redis.Redis(host=config.cache.host, port=config.cache.port, decode_responses=True)
 
-def cache_key_record(record_type: str, record_id: str) -> str:
-    return f"{record_type}:{record_id}"
+def cache_key_builder(
+    func: Callable[..., Any],
+    **kwargs: Dict[str, Any],
+) -> str:
+    cache_key = hashlib.md5(  # noqa: S324
+        f"{func.__module__}:{kwargs}".encode()
+    ).hexdigest()
+    return cache_key
 
 def get_json(key: str) -> Optional[dict]:
     raw = redis_client.execute_command("JSON.GET", key, "$")

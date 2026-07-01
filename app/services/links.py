@@ -3,7 +3,7 @@ from typing import List
 
 from sqlalchemy import select
 
-from app.backend.cache.cache import get_model, set_model, cache_key_record
+from app.backend.cache.cache import get_model, set_model, cache_key_builder
 
 from app.models.links import LinkModel
 from app.schemas.links import LinkSchema
@@ -17,7 +17,7 @@ class LinkService(BaseService):
     def get_link(self, id: uuid.UUID) -> LinkSchema:
         """Get link by ID."""
 
-        key = cache_key_record("link", id)
+        key = cache_key_builder(self, id=id, url=url)
 
         cached = get_model(key, LinkModel)
         if cached:
