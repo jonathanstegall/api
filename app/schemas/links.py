@@ -1,10 +1,11 @@
 import uuid
 from datetime import datetime
+from pydantic import AnyHttpUrl
 from app.schemas.base import BaseSchema
 
 class LinkSchema(BaseSchema):
     id: uuid.UUID
-    url: str
+    url: AnyHttpUrl
     title: str
     source: str
     source_id: str
