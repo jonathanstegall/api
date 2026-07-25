@@ -2,8 +2,11 @@ from pydantic import (
     BaseModel,
     ConfigDict,
 )
+from typing import TypeVar, Generic
 
-class BaseSchema(BaseModel):
+T = TypeVar("T")
+
+class BaseSchema(BaseModel, Generic[T]):
     model_config = ConfigDict(
         from_attributes=True
     )
