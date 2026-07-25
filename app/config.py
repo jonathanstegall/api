@@ -1,3 +1,4 @@
+import os
 from pydantic_settings import (
     BaseSettings,
     SettingsConfigDict,
@@ -18,6 +19,7 @@ class Config(BaseSettings):
     app_name: str = "Open API"
     app_description: str = ""
     app_version: str = ""
+    base_folder: str = os.path.dirname(__file__)
 
     token_key: str = ""
     token_type: str = ""
