@@ -3,7 +3,7 @@ from typing import List
 
 from sqlalchemy import select
 
-from app.backend.cache.cache import get_model, set_model, cache_key_builder
+from app.backend.cache.cache import get_schema, set_schema, cache_key_builder
 
 from app.models.links import LinkModel
 from app.schemas.links import CreateLinkSchema, LinkSchema
