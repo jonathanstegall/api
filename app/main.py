@@ -6,6 +6,7 @@ from app.routers import (
     static,
     links,
 )
+from app.middleware.cache import RedisCacheMiddleware
 
 app = FastAPI(
     title=config.app_name,
@@ -15,6 +16,8 @@ app = FastAPI(
 )
 
 app.mount("/static", StaticFiles(directory=config.base_folder + "/../static",html=True), name="static")
+
+app.add_middleware(RedisCacheMiddleware)
 
 app.include_router(static.router)
 app.include_router(links.router)

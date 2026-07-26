@@ -14,4 +14,5 @@ class CacheConfig(BaseModel):
     host: str | None = None
     port: int | None = None
     ttl: int = 300
-
+    use_cache: bool | None = True
+    skip_cache: bool | None = False
