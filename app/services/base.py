@@ -35,6 +35,10 @@ class BaseDataManager(SessionMixin):
     def add_all(self, models: Sequence[Any]) -> None:
         self.session.add_all(models)
 
+    def count(self, query: Executable) -> Any:
+        count = self.session.scalar(select(func.count()).select_from(query))
+        return count
+    
     def get_one(self, select_stmt: Executable) -> Any:
         return self.session.scalar(select_stmt)
 

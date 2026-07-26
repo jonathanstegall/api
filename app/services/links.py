@@ -1,11 +1,13 @@
 import uuid
-from typing import List
+from typing import List, Annotated
 
 from sqlalchemy import select
 
 from app.backend.cache.cache import get_schema, set_schema, cache_key_builder
 
 from app.models.links import LinkModel
+from app.dependencies.parameters import RequestParameters
+from app.schemas.response import Response
 from app.schemas.links import CreateLinkSchema, LinkSchema
 from app.services.base import (
     BaseDataManager,
@@ -27,27 +29,19 @@ class LinkService(BaseService):
         LinkDataManager(self.session).add_link(link_model)
     
 
-    def get_links(self, offset: int = 0, limit: int = 100) -> List[LinkSchema]:
+    def get_links(self, params) -> Response[LinkSchema]:
         """Select links with values for offset and limit."""
 
-        return LinkDataManager(self.session).get_links(offset, limit)
+        links = LinkDataManager(self.session).get_links(params)
+
+        return links
 
     
-    def get_link(self, id: uuid.UUID | None = None, url: str | None = None) -> LinkSchema:
+    def get_link(self, id: uuid.UUID | None = None, url: str | None = None, params: RequestParameters | None = None) -> Response[LinkSchema]:
         """Get link by ID."""
 
-        key = cache_key_builder(self, id=id, url=url)
-
-        cached = get_model(key, LinkModel)
-        if cached:
-            return cached
-
-        link = LinkDataManager(self.session).get_link(id, url)
-
-        set_model(key, link)
+        link = LinkDataManager(self.session).get_link(id, url, params)
         return link
-
-    
 
 
 class LinkDataManager(BaseDataManager):
@@ -58,21 +52,27 @@ class LinkDataManager(BaseDataManager):
         self.add_one(link)
 
 
-    def get_links(self, offset: int, limit: int) -> List[LinkSchema]:
-        schemas: List[LinkSchema] = list()
+    def get_links(self, params) -> Response[LinkSchema]:
+        offset = (params.page - 1) * params.page_size
+        limit = params.page_size
 
+        schemas: List[LinkSchema] = list()
         stmt = select(LinkModel).offset(offset).limit(limit)
 
         for model in self.get_all(stmt):
             schemas += [LinkSchema(**model.to_dict())]
 
-        return schemas
+        #return schemas
+        count = self.count(select(LinkModel))
+        return Response.wrap(items=schemas, total=count, page=params.page, page_size=params.page_size)
     
 
-    def get_link(self, id: uuid.UUID | None = None, url: str | None = None) -> LinkSchema:
+    def get_link(self, id: uuid.UUID | None = None, url: str | None = None, params: RequestParameters | None = None) -> Response[LinkSchema]:
         stmt = select(LinkModel).where(LinkModel.id == id)
         model = self.get_one(stmt)
-
-        return LinkSchema(**model.to_dict())
+        count = self.count(stmt)
+        
+        #return LinkSchema(**model.to_dict())
+        return Response.wrap(items=[LinkSchema(**model.to_dict())], total=count)
 
     

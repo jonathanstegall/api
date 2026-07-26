@@ -28,8 +28,11 @@ class Config(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
 
+    page_size: int = 10
+
     database: DatabaseConfig = DatabaseConfig()
     cache: CacheConfig = CacheConfig()
+
     raindrop: RaindropConfig = RaindropConfig()
     tumblr: TumblrConfig = TumblrConfig()
     instapaper: InstapaperConfig = InstapaperConfig()

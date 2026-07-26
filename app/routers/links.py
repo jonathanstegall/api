@@ -8,36 +8,40 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 from app.backend.database.session import create_session
+from app.dependencies.parameters import RequestParameters
 
 #from app.const import (
 #    MOVIES_TAGS,
 #    MOVIES_URL,
 #    MOVIES_URL_NEW,
 #)
+from app.schemas.response import Response
 from app.schemas.links import LinkSchema
 from app.services.links import LinkService
 
 
 router = APIRouter()
 
-
-@router.get("/links/", response_model=List[LinkSchema])
-async def get_links(
-    offset: int = 0,
-    limit: int = 100,
-    session: Session = Depends(create_session),
-) -> List[LinkSchema]:
+@router.get("/links/")
+async def get_links(params: RequestParameters = Depends(), session: Session = Depends(create_session)):
     """Get multiple links."""
+    links = LinkService(session).get_links(params)
+    return links
 
-    return LinkService(session).get_links(offset, limit)
 
-
-@router.get("/link/", response_model=LinkSchema)
+@router.get("/link/", response_model=Response[LinkSchema])
 async def get_link(
     id: uuid.UUID | None = None,
     url: str | None = None,
+    params: RequestParameters = Depends(),
     session: Session = Depends(create_session),
 ) -> LinkSchema:
     """Get a single link."""
 
-    return LinkService(session).get_link(id, url)
+    #return LinkService(session).get_link(id, url)
+    link = LinkService(session).get_link(id, url, params)
+    #result = {
+    #    "link": link,
+    #    "data": "data"
+    #}
+    return link
