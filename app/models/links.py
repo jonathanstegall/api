@@ -19,6 +19,7 @@ class LinkModel(SQLModel):
     type: Mapped[str] = mapped_column("type")
     date: Mapped[datetime] = mapped_column(default=None)
     saved_date: Mapped[datetime] = mapped_column(default=None)
+    created_at: Mapped[datetime] = mapped_column(default=None)
     creator: Mapped[str] = mapped_column("creator")
     referrer: Mapped[str] = mapped_column("referrer")
     format: Mapped[str] = mapped_column("format")
