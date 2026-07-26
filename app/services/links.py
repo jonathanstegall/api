@@ -73,6 +73,6 @@ class LinkDataManager(BaseDataManager):
         count = self.count(stmt)
         
         #return LinkSchema(**model.to_dict())
-        return Response.wrap(items=[LinkSchema(**model.to_dict())], total=count)
+        return Response.wrap(items=[LinkSchema(**model.to_dict())], total=count, page=params.page, page_size=params.page_size)
 
     
