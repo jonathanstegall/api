@@ -57,13 +57,18 @@ class LinkDataManager(BaseDataManager):
         limit = params.page_size
 
         schemas: List[LinkSchema] = list()
-        stmt = select(LinkModel).offset(offset).limit(limit)
 
+        if params.saved_date_start is not None and params.saved_date_end is not None:
+            base_statement = select(LinkModel).where(LinkModel.saved_date.between(params.saved_date_start, params.saved_date_end))
+        else:
+            base_statement = select(LinkModel)
+        
+        stmt = base_statement.offset(offset).limit(limit)
         for model in self.get_all(stmt):
             schemas += [LinkSchema(**model.to_dict())]
 
         #return schemas
-        count = self.count(select(LinkModel))
+        count = self.count(base_statement)
         return Response.wrap(items=schemas, total=count, page=params.page, page_size=params.page_size)
     
 
