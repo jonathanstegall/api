@@ -58,6 +58,11 @@ class LinkService(BaseService):
         return link
 
 
+    def ingest_links(self, sources, params: RequestParameters | None = None):
+        sources = sources.split(",")
+        return {"sources": sources}
+
+
 class LinkDataManager(BaseDataManager):
 
     def add_link(self, link: LinkModel) -> None:

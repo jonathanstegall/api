@@ -37,11 +37,17 @@ async def get_link(
     session: Session = Depends(create_session),
 ) -> LinkSchema:
     """Get a single link."""
-
-    #return LinkService(session).get_link(id, url)
     link = LinkService(session).get_link(id, url, params)
-    #result = {
-    #    "link": link,
-    #    "data": "data"
-    #}
     return link
+
+
+@router.post("/links/ingest")
+async def get_links(
+    sources: str,
+    params: RequestParameters = Depends(),
+    session: Session = Depends(create_session)
+    ):
+    """Ingest links from a source."""
+    links = LinkService(session).ingest_links(sources, params)
+    return links
+
