@@ -8,6 +8,9 @@ class CacheConfig(BaseModel):
         host: cache host.
         port: cache port.
         ttl: cache TTL.
+        use_cache: whether or not to use the cache at all
+        skip_cache: retrieve new data, whether or not data is cached
+        overwrite_cache: overwrite the cache with the current result, regardless of expiration
     """
 
     url: str | None = None
@@ -16,3 +19,5 @@ class CacheConfig(BaseModel):
     ttl: int = 300
     use_cache: bool | None = True
     skip_cache: bool | None = False
+    overwrite_cache: bool | None = False
+

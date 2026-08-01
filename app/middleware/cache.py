@@ -21,6 +21,7 @@ class RedisCacheMiddleware(BaseHTTPMiddleware):
 
     use_cache: bool | None = config.cache.use_cache
     skip_cache: bool | None = config.cache.skip_cache
+    overwrite_cache: bool | None = config.cache.overwrite_cache
 
     def __init__(
         self, 
@@ -48,7 +49,7 @@ class RedisCacheMiddleware(BaseHTTPMiddleware):
         # Check cache
         cached_response = get_json(key)
         #cached_response = None
-        if cached_response and self.skip_cache is False:
+        if cached_response and self.skip_cache is False and self.overwrite_cache is False:
             return JSONResponse(
                 content=cached_response["data"],
                 status_code=cached_response["status_code"],
@@ -78,7 +79,7 @@ class RedisCacheMiddleware(BaseHTTPMiddleware):
                 "X-Cache-Status": "MISS"
             }
 
-            if self.use_cache is True:
+            if self.use_cache is True or self.overwrite_cache is True:
                 save_to_cache = set_json(key, cache_data)
                 headers["X-Cache"] = "SAVED"
                 headers["X-Cache-Generated"] = cache_data["generated"]
