@@ -1,5 +1,4 @@
-from contextlib import contextmanager
-from typing import Iterator
+from typing import Iterator, Generator
 
 from sqlalchemy import create_engine, URL
 from sqlalchemy.orm import (
@@ -46,8 +45,7 @@ def create_session() -> Iterator[Session]:
         session.close()
 
 
-@contextmanager
-def open_session() -> Iterator[Session]:
+def open_session() -> Generator[Session]:
     """Create new database session with context manager.
 
     Yields:
