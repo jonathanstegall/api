@@ -3,6 +3,8 @@ from typing import List, Annotated
 
 from sqlalchemy import select
 
+from starlette.responses import JSONResponse
+
 from app.backend.cache.cache import get_schema, set_schema, cache_key_builder
 from app.backend.ingest.tumblr import Tumblr
 from app.backend.ingest.instapaper import Instapaper
@@ -30,6 +32,14 @@ class LinkService(BaseService):
         )
 
         LinkDataManager(self.session).add_link(link_model)
+
+
+    def create_links(self, links: List[CreateLinkSchema]) -> None:
+        """Bulk add link entries to database."""
+
+        link_models = [LinkModel(**_.model_dump()) for _ in links]
+        #self.session.add_all(link_models)
+        LinkDataManager(self.session).add_links(link_models)
     
 
     def get_links(self, params) -> Response[LinkSchema]:
@@ -82,7 +92,7 @@ class LinkService(BaseService):
         for model in links:
             schemas += [LinkSchema(**model)]
             
-        #test = self.create_links(schemas)
+        self.create_links(schemas)
         return schemas
 
 
@@ -94,7 +104,16 @@ class LinkDataManager(BaseDataManager):
         self.add_one(link)
 
 
+    def add_links(self, link_models: LinkModel) -> None:
+        """Bulk write links to database."""
+
+        self.add_all(link_models)
+        #return result
+
+
     def get_links(self, base_statement, statement, params: RequestParameters | None = None) -> Response[LinkSchema]:
+        """Run select statement for multiple links."""
+
         schemas: List[LinkSchema] = list()        
         for model in self.get_all(statement):
             schemas += [LinkSchema(**model.to_dict())]
@@ -104,6 +123,8 @@ class LinkDataManager(BaseDataManager):
     
 
     def get_link(self, field, value, params: RequestParameters | None = None) -> Response[LinkSchema]:
+        """Run select statement for a single link."""
+
         statement = select(LinkModel).where(getattr(LinkModel, field) == value)
         model = self.get_one(statement)
 

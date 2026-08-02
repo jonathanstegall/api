@@ -98,7 +98,7 @@ class Raindrop(Link):
         ids = options.get("reblog_info", [])
         nested = options.get("nested", False)
 
-        payload = {'key1': 'value1', 'key2': 'value2'}
+        #payload = {'key1': 'value1', 'key2': 'value2'}
 
         payload = {
             "collectionId": collectionId
