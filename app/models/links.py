@@ -1,5 +1,7 @@
 import uuid
 from datetime import datetime, timezone
+from pydantic import AnyHttpUrl
+from app.backend.database.adapters import HttpUrlType
 from sqlalchemy.orm import (
     Mapped,
     mapped_column,
@@ -12,7 +14,7 @@ class LinkModel(SQLModel):
     #__table_args__ = {"schema": "myapi"}
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    url: Mapped[str] = mapped_column("url")
+    url: Mapped[AnyHttpUrl] = mapped_column(HttpUrlType)
     title: Mapped[str] = mapped_column("title")
     source: Mapped[str] = mapped_column("source")
     source_id: Mapped[str] = mapped_column("source_id")

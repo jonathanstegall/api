@@ -68,6 +68,7 @@ class BaseDataManager(SessionMixin):
 
         return self.get_all(self.select_from_tvf(model, *args))
 
+
     @staticmethod
     def select_from_tvf(model: Type[SQLModel], *args: Any) -> Executable:
         fn = getattr(getattr(func, model.schema()), model.table_name())

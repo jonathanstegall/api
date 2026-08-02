@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from pydantic import AnyHttpUrl
+from app.backend.database.adapters import HttpUrlType
 from app.schemas.base import BaseSchema
 
 
@@ -10,14 +11,14 @@ class LinkSchema(BaseSchema):
     title: str
     source: str
     source_id: str
-    type: str | None
-    date: datetime | None
-    creator: str | None
-    referrer: str | None
-    text: str | None
-    saved_date: datetime | None
-    created_at: datetime | None
-    format: str | None
+    type: str | None = None
+    date: datetime | None = None
+    creator: str | None = None
+    referrer: str | None = None
+    text: str | None = None
+    saved_date: datetime | None = None
+    created_at: datetime | None = None
+    format: str | None = None
 
 
 class CreateLinkSchema(BaseSchema):
@@ -39,7 +40,7 @@ class CreateLinkSchema(BaseSchema):
 
 class UpdateLinkSchema(BaseSchema):
     id: uuid.UUID
-    url: AnyHttpUrl
+    url: HttpUrlType
     title: str
     source: str
     source_id: str
