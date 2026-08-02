@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Callable
 from contextvars import ContextVar
 
-from fastapi import FastAPI, HTTPException, Response#, Request
+from fastapi import FastAPI, Response
 from starlette.requests import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
@@ -15,6 +15,12 @@ from app.config import config
 from app.backend.cache.cache import cache_key_builder, get_json, set_json
 
 request_object: ContextVar[Request] = ContextVar('request')
+
+# List of routes and methods to bypass middleware
+EXCLUDED_ROUTES = [
+    {"path": "/static", "methods": ["GET", "POST"]},
+    {"path": "/favicon.ico", "methods": ["GET"]} 
+]
 
 # Redis cache middleware
 class RedisCacheMiddleware(BaseHTTPMiddleware):
@@ -29,6 +35,11 @@ class RedisCacheMiddleware(BaseHTTPMiddleware):
     ): super().__init__(app)
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+
+        for route in EXCLUDED_ROUTES:
+            if request.url.path == route["path"] and request.method in route["methods"]:
+                print(f"[Middleware] Skipping middleware for {request.method} {request.url.path}")
+                return await call_next(request)
 
         request_object.set(request)
         response = await call_next(request)
