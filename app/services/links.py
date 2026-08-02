@@ -4,6 +4,9 @@ from typing import List, Annotated
 from sqlalchemy import select
 
 from app.backend.cache.cache import get_schema, set_schema, cache_key_builder
+from app.backend.ingest.tumblr import Tumblr
+from app.backend.ingest.instapaper import Instapaper
+from app.backend.ingest.raindrop import Raindrop
 
 from app.models.links import LinkModel
 from app.dependencies.parameters import RequestParameters
@@ -60,7 +63,27 @@ class LinkService(BaseService):
 
     def ingest_links(self, sources, params: RequestParameters | None = None):
         sources = sources.split(",")
-        return {"sources": sources}
+        links = []
+
+        if "raindrop" in sources:
+            for link in Raindrop().get_links():
+                links.append(link)
+
+        if "tumblr" in sources:
+            for link in Tumblr().get_links():
+                links.append(link)
+
+        if "instapaper" in sources:
+            for link in Instapaper().get_links():
+                links.append(link)
+
+        #for link in links:
+        schemas: List[LinkSchema] = list()        
+        for model in links:
+            schemas += [LinkSchema(**model)]
+            
+        #test = self.create_links(schemas)
+        return schemas
 
 
 class LinkDataManager(BaseDataManager):
