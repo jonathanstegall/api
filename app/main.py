@@ -9,10 +9,6 @@ from app.routers import (
 from app.dependencies.parameters import RequestParameters
 
 from app.middleware.cache import RedisCacheMiddleware
-from app.middleware.errorhandling import ErrorHandlingMiddleware
-
-from app.exceptions.handlers import register_exception_handlers
-
 
 def create_app() -> FastAPI:
 
@@ -27,13 +23,9 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=config.base_folder + "/../static",html=True), name="static")
 
     app.add_middleware(RedisCacheMiddleware)
-    app.add_middleware(ErrorHandlingMiddleware)
 
     app.include_router(static.router)
     app.include_router(links.router)
-
-    # Register exception handlers
-    register_exception_handlers(app)
 
     return app
 

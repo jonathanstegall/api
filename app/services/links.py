@@ -125,10 +125,14 @@ class LinkDataManager(BaseDataManager):
     def get_link(self, field, value, params: RequestParameters | None = None) -> Response[LinkSchema]:
         """Run select statement for a single link."""
 
-        statement = select(LinkModel).where(getattr(LinkModel, field) == value)
-        model = self.get_one(statement)
+        try:
+            statement = select(LinkModel).where(getattr(LinkModel, field) == value)
+            model = self.get_one(statement)
 
-        count = self.count(statement)
-        return Response.wrap(items=[LinkSchema(**model.to_dict())], total=count, page=params.page, page_size=params.page_size)
+            count = self.count(statement)
+            return Response.wrap(items=[LinkSchema(**model.to_dict())], total=count, page=params.page, page_size=params.page_size)
+        except Exception:
+            raise Exception()
+
 
     

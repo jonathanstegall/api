@@ -21,17 +21,22 @@ def cache_key_builder(
     return cache_key
 
 def get_json(key: str) -> Optional[dict]:
-    raw = redis_client.execute_command("JSON.GET", key, "$")
-    #generated = redis_client.execute_command("JSON.GET", "{}_generated".format(key), "$")
-    if not raw:
-        return None
     # JSON.GET with '$' returns a list-like JSON, take first element
-    data = json.loads(raw)[0]
+    try:
+        raw = redis_client.execute_command("JSON.GET", key, "$")
+        #generated = redis_client.execute_command("JSON.GET", "{}_generated".format(key), "$")
+        if not raw:
+            return None
+        data = json.loads(raw)[0]
+        return data
+    except Exception as e:
+        print(f"Error retrieving json: {e}") # Consider using a proper logger
+        return None
     #result = {
     #    "data": data,
     #    "generated": generated
     #}
-    return data
+    
 
 def set_json(key: str, value: dict, ttl_seconds: int = config.cache.ttl) -> None:
     try:
@@ -50,6 +55,7 @@ def set_json(key: str, value: dict, ttl_seconds: int = config.cache.ttl) -> None
             return value
     except Exception as e:
         print(f"Error during response formatting: {e}") # Consider using a proper logger
+        return value
 
 
 def get_schema(key: str, schema: Type[T]) -> Optional[T]:
