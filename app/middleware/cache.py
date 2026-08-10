@@ -92,11 +92,12 @@ class RedisCacheMiddleware(BaseHTTPMiddleware):
 
             if self.use_cache is True or self.overwrite_cache is True:
                 save_to_cache = set_json(key, cache_data)
-                headers["X-Cache"] = "SAVED"
-                headers["X-Cache-Generated"] = cache_data["generated"]
+                if save_to_cache is not None:
+                    headers["X-Cache"] = "SAVED"
+                    headers["X-Cache-Generated"] = cache_data["generated"]
 
-                if save_to_cache["data"]:
-                    response_body = save_to_cache["data"]
+                    if save_to_cache["data"]:
+                        response_body = save_to_cache["data"]
 
             return JSONResponse(
                 content=response_body,

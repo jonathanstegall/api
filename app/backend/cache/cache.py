@@ -53,9 +53,11 @@ def set_json(key: str, value: dict, ttl_seconds: int = config.cache.ttl) -> None
             redis_client.expire(key, ttl_seconds)
         if save_data == "OK":
             return value
+    except redis.ConnectionError as e:
+        print(f"Redis connection error during response formatting: {e}") # Consider using a proper logger
     except Exception as e:
         print(f"Error during response formatting: {e}") # Consider using a proper logger
-        return value
+        return None
 
 
 def get_schema(key: str, schema: Type[T]) -> Optional[T]:
