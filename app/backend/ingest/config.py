@@ -35,16 +35,10 @@ class InstapaperConfig(BaseModel):
     """External API integration parameters.
 
     Attributes:
-        consumer_key: consumer key
-        consumer_secret: consumer secret
-        username: account username
-        password: account password
+        access token: decrypted access token
         limit: limit of results to return
     """
 
-    consumer_key: str | None = None
-    consumer_secret: str | None = None
-    username: str | None = None
-    password: str | None = None
+    access_token: str | None = None
     limit: int = 25
 

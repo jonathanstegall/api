@@ -33,11 +33,12 @@ class Link():
         # format bookmarks as links
         format_links = [self.format_post_as_link(post) for post in valid_posts]
         #links = format_links
-        headers = {"X-Cache-Generated": response["generated"]}
-        if response["cache_status"] == "existing":
-            headers["X-Cache"] = "HIT"
-        else:
-            headers["X-Cache"] = "SAVED"
+        if "generated" in response and "cache_status" in response:
+            headers = {"X-Cache-Generated": response["generated"]}
+            if response["cache_status"] == "existing":
+                headers["X-Cache"] = "HIT"
+            else:
+                headers["X-Cache"] = "SAVED"
 
         #links = {
         #    "content": format_links,

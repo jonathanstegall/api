@@ -1,12 +1,13 @@
 import json
 import uuid
-from requests_oauthlib import OAuth1Session
+import requests
 from app.config import config
 from app.backend.ingest.link import Link
 
 class Instapaper(Link):
 
     source = "instapaper"
+    version = "2"
     url: str | None = f"https://www.instapaper.com/api/"
 
     options = Link.options
@@ -17,58 +18,31 @@ class Instapaper(Link):
         "folder_id": "unread"
     }
 
+    # headers
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {config.instapaper.access_token}"
+    }
+
     def get_posts(self, options = None):
         options = self.options
-        # authenticate Instapaper
-        oauth_token, oauth_token_secret = self.get_access_token()
-        instapaper_session = self.authenticate(oauth_token, oauth_token_secret)
 
         # fetch Instapaper bookmarks
         posts = self.get_bookmarks(
-            session = instapaper_session,
-            options = options["instapaper"]
+            options = options[self.source]
         )
         return posts
 
 
     def validate_response(self, response):
-        valid_posts = [bookmark for bookmark in response["data"] if bookmark["type"] == "bookmark" and bookmark["title"] != ""]
+        valid_posts = [bookmark for bookmark in response["bookmarks"] if bookmark["title"] != ""]
         return valid_posts
 
 
-    def get_access_token(self):
-        """Obtain OAuth access token using xAuth."""
-        url = f"{self.url}1/oauth/access_token"
-        oauth = OAuth1Session(
-            config.instapaper.consumer_key, client_secret=config.instapaper.consumer_secret
-        )
-        data = {
-            "x_auth_username": config.instapaper.username,
-            "x_auth_password": config.instapaper.password,
-            "x_auth_mode": "client_auth",
-        }
-        response = oauth.post(url, data=data)
-        if response.status_code == 200:
-            token_data = dict(item.split("=") for item in response.text.split("&"))
-            return token_data["oauth_token"], token_data["oauth_token_secret"]
-        else:
-            raise Exception(f"Failed to get access token: {response.text}")
-
-
-    def authenticate(self, oauth_token, oauth_token_secret):
-        """Authenticate with Instapaper using OAuth."""
-        return OAuth1Session(
-            config.instapaper.consumer_key,
-            client_secret=config.instapaper.consumer_secret,
-            resource_owner_key=oauth_token,
-            resource_owner_secret=oauth_token_secret,
-        )
-
-
-    def get_folder_id(self, session, folder_name):
+    def get_folder_id(self, folder_name):
         """Retrieve the numerical ID of a folder given its name."""
-        url = f"{self.url}1.1/folders/list"
-        response = session.post(url)
+        url = f"{self.url}{self.version}/folders/"
+        response = requests.get(url, headers=self.headers).json()
         if response.status_code == 200:
             folders = response.json()
             for folder in folders:
@@ -79,7 +53,7 @@ class Instapaper(Link):
             raise Exception(f"Failed to fetch folders: {response.text}")
 
 
-    def get_bookmarks(self, session, options = None):
+    def get_bookmarks(self, options = None):
         """Retrieve bookmarks, optionally from a specific Instapaper folder by its name."""
         
         request_data = {}
@@ -95,7 +69,7 @@ class Instapaper(Link):
 
         if folder_name is not None:
             # Get the numerical ID of the folder
-            folder_id = self.get_folder_id(session, folder_name)
+            folder_id = self.get_folder_id(folder_name)
             if not folder_id:
                 raise Exception(f"No such folder named {folder_name}")
             request_data["folder_id"] = folder_id
@@ -112,15 +86,15 @@ class Instapaper(Link):
             request_data["highlights"] = highlights
 
         # Fetch bookmarks
-        url = f"{self.url}1/bookmarks/list"
+        url = f"{self.url}{self.version}/bookmarks"
 
-        response = session.post(url, data=request_data)
+        # api call
+        response = requests.get(url, headers=self.headers).json()
         # TODO: handle paging more than 500 bookmarks
-        if response.status_code == 200:
-            response_data = response.json()
-            return response_data
+        if response["total"] > 0:
+            return response
         else:
-            raise Exception(f"Failed to fetch bookmarks: {response.text}")
+            raise Exception(f"Failed to fetch bookmarks: {response}")
         
 
     def format_post_as_link(self, bookmark):
@@ -128,14 +102,13 @@ class Instapaper(Link):
             "source": self.source,
             "type": "bookmark",
             "id": str(uuid.uuid4()),
-            "source_id": str(bookmark["bookmark_id"]),
+            "source_id": str(bookmark["id"]),
             "date": None,
             "url": bookmark["url"],
             "data": json.dumps(bookmark),
             "title": bookmark.get("title", bookmark["url"]),
             "text": bookmark.get("description", ""),
-            "saved_date": bookmark["time"],
-            "hash": bookmark["hash"]
+            "saved_date": bookmark["time"]
         }
         return bookmark
 
