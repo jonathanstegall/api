@@ -93,7 +93,7 @@ class Link():
                 "generated": json.dumps(datetime.now(), default=str),
             }
             save_to_cache = set_json(cache_key, cache_data)
-            if save_to_cache["data"] is not None:
+            if "data" in save_to_cache:
                 response = save_to_cache
         return response
 

@@ -35,7 +35,7 @@ class Instapaper(Link):
 
 
     def validate_response(self, response):
-        valid_posts = [bookmark for bookmark in response["bookmarks"] if bookmark["title"] != ""]
+        valid_posts = [bookmark for bookmark in response["data"]["bookmarks"] if bookmark["title"] != ""]
         return valid_posts
 
 
