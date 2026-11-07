@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, Optional, Type, TypeVar
 
 from app.config import config
+from app.exceptions import CacheConnectionError, CacheWriteError, CacheReadError
 from app.schemas.base import BaseSchema
 
 T = TypeVar("T")
@@ -29,13 +30,11 @@ def get_json(key: str) -> Optional[dict]:
             return None
         data = json.loads(raw)[0]
         return data
+    except redis.ConnectionError as e:
+        raise CacheConnectionError(f"Redis connection error for cache read ('{key}'): {e}") from e
     except Exception as e:
-        print(f"Error retrieving json: {e}") # Consider using a proper logger
-        return None
-    #result = {
-    #    "data": data,
-    #    "generated": generated
-    #}
+        # JSON parsing error is a read error
+        raise CacheReadError(f"Failed to read JSON from cache ('{key}'): {e}", cache_key=key) from e
     
 
 def set_json(key: str, value: dict, ttl_seconds: int = config.cache.ttl) -> None:
@@ -54,10 +53,9 @@ def set_json(key: str, value: dict, ttl_seconds: int = config.cache.ttl) -> None
         if save_data == "OK":
             return value
     except redis.ConnectionError as e:
-        print(f"Redis connection error during response formatting: {e}") # Consider using a proper logger
+        raise CacheWriteError(f"Redis connection error for cache write ('{key}'): {e}", cache_key=key) from e
     except Exception as e:
-        print(f"Error during response formatting: {e}") # Consider using a proper logger
-        return None
+        raise CacheWriteError(f"Failed to write JSON to cache ('{key}'): {e}", cache_key=key) from e
 
 
 def get_schema(key: str, schema: Type[T]) -> Optional[T]:

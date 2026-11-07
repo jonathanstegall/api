@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import Executable
 
 from app.models.base import SQLModel
+from app.exceptions import DatabaseError
 
 
 class SessionMixin:
@@ -30,20 +31,40 @@ class BaseDataManager(SessionMixin):
     """Base data manager class responsible for operations over database."""
 
     def add_one(self, model: Any) -> None:
-        self.session.add(model)
+        try:
+            self.session.add(model)
+        except Exception as e:
+            # Rollback on error
+            self.session.rollback()
+            raise DatabaseError(f"Failed to add model: {e}", operation="add_one") from e
 
     def add_all(self, models: Sequence[Any]) -> None:
-        self.session.add_all(models)
+        try:
+            self.session.add_all(models)
+        except Exception as e:
+            # Rollback on error
+            self.session.rollback()
+            raise DatabaseError(f"Failed to add models: {e}", operation="add_all") from e
 
     def count(self, query: Executable) -> Any:
         count = self.session.scalar(select(func.count()).select_from(query))
         return count
     
     def get_one(self, select_stmt: Executable) -> Any:
-        return self.session.scalar(select_stmt)
+        try:
+            result = self.session.scalar(select_stmt)
+            return result
+        except Exception as e:
+            self.session.rollback()  # already committed elsewhere
+            raise DatabaseError(f"Failed to get one: {e}", operation="get_one") from e
 
     def get_all(self, select_stmt: Executable) -> List[Any]:
-        return list(self.session.scalars(select_stmt).all())
+        try:
+            result = list(self.session.scalars(select_stmt).all())
+            return result
+        except Exception as e:
+            self.session.rollback() # already committed elsewhere
+            raise DatabaseError(f"Failed to get all: {e}", operation="get_all") from e
 
     def get_from_tvf(self, model: Type[SQLModel], *args: Any) -> List[Any]:
         """Query from table valued function.
