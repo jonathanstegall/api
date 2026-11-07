@@ -113,54 +113,52 @@ class Instapaper(Link):
         return bookmark
 
 
-    def create_folder(self, session, folder_name):
+    def create_folder(self, folder_name):
         """Create a new Instapaper folder."""
-        url = f"{self.url}1/folders/add"
-        response = session.post(url, data={"title": folder_name})
+        url = f"{self.url}{self.version}/folders"
+        response = requests.post(url, headers=self.headers, data={"title": folder_name})
         if response.status_code == 200:
             return response.json()[0]["folder_id"]
         else:
             raise Exception(f"Failed to create folder: {response.text}")
         
 
-    def list_folders(self, session):
+    def list_folders(self):
         """List all Instapaper folders."""
 
         # response is like this
         # [{'type': 'folder', 'folder_id': 5367019, 'title': 'test folder', 'display_title': 'test folder', 'slug': 'test-folder', 'sync_to_mobile': 1, 'position': 1779640105, 'public': 0, 'count': 1}]
 
-        url = f"{self.url}1/folders/list"
-        response = session.post(url)
-        if response.status_code == 200:
+        url = f"{self.url}{self.version}/folders"
+        response = requests.get(url, headers=self.headers).json()
+        if "folders" in response:
             response_data = response.json()
             return response_data
         else:
             raise Exception(f"Failed to fetch folders: {response.text}")
         
 
-    def move_bookmark(self, session, bookmark_id, folder_id):
+    def move_bookmark(self, bookmark_id, folder_id):
         """Move a bookmark to an Instapaper folder."""
-        api_url = f"{self.url}1/bookmarks/move"
+        api_url = f"{self.url}{self.version}/bookmarks/{bookmark_id}/move"
         data = {
-            "bookmark_id": bookmark_id,
-            "folder_id": folder_id
+            "section": folder_id
         }
-        response = session.post(api_url, data=data)
+        response = requests.post(api_url, headers=self.headers, data=data)
         if response.status_code != 200:
             raise Exception(f"Failed to move bookmark: {response.text}")
 
 
-    def save_bookmark(self, session, folder_id, url, title, description):
+    def save_bookmark(self, folder_id, url, title, description):
         """Save a bookmark to Instapaper."""
-        api_url = f"{self.url}1/bookmarks/add"
+        api_url = f"{self.url}{self.version}/bookmarks"
         data = {
             "url": url,
             "title": title,
             "description": description,
-            "content": description,
             "folder_id": folder_id,
         }
-        response = session.post(api_url, data=data)
+        response = requests.post(api_url, headers=self.headers, data=data)
         if response.status_code != 200:
             raise Exception(f"Failed to save bookmark: {response.text}")
 
