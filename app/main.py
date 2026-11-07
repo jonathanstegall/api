@@ -1,35 +1,33 @@
-import sentry_sdk
-from fastapi import FastAPI
-from app.core.redis import lifespan
-from fastapi.routing import APIRoute
-from starlette.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Depends
+from fastapi.staticfiles import StaticFiles
 
-from app.api.main import api_router
-from app.core.config import settings
-
-
-def custom_generate_unique_id(route: APIRoute) -> str:
-    return f"{route.tags[0]}-{route.name}"
-
-
-if settings.SENTRY_DSN and settings.ENVIRONMENT != "local":
-    sentry_sdk.init(dsn=str(settings.SENTRY_DSN), enable_tracing=True)
-
-app = FastAPI(
-    lifespan=lifespan,
-    title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    generate_unique_id_function=custom_generate_unique_id,
+from app.config import config
+from app.routers import (
+    static,
+    links,
 )
+from app.dependencies.parameters import RequestParameters
 
-# Set all CORS enabled origins
-if settings.all_cors_origins:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.all_cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+from app.middleware.cache import RedisCacheMiddleware
+
+def create_app() -> FastAPI:
+
+    app = FastAPI(
+        title=config.app_name,
+        description=config.app_description,
+        version=config.app_version,
+        swagger_ui_parameters={"defaultModelsExpandDepth": -1},
+        dependencies=[Depends(RequestParameters)]
     )
 
-app.include_router(api_router, prefix=settings.API_V1_STR)
+    app.mount("/static", StaticFiles(directory=config.base_folder + "/../static",html=True), name="static")
+
+    app.add_middleware(RedisCacheMiddleware)
+
+    app.include_router(static.router)
+    app.include_router(links.router)
+
+    return app
+
+app = create_app()
+
