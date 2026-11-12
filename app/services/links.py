@@ -68,6 +68,7 @@ class LinkService(BaseService):
         return link
 
     def ingest_links(self, sources, params: RequestParameters | None = None):
+        """Ingest links from a source."""
         sources = sources.split(",")
         links = []
 
