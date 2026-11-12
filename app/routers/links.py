@@ -9,12 +9,6 @@ from sqlalchemy.orm import Session
 
 from app.backend.database.session import create_session
 from app.dependencies.parameters import RequestParameters
-
-#from app.const import (
-#    MOVIES_TAGS,
-#    MOVIES_URL,
-#    MOVIES_URL_NEW,
-#)
 from app.schemas.response import Response
 from app.schemas.links import LinkSchema
 from app.services.links import LinkService

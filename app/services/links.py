@@ -33,14 +33,12 @@ class LinkService(BaseService):
 
         LinkDataManager(self.session).add_link(link_model)
 
-
     def create_links(self, links: List[CreateLinkSchema]) -> None:
         """Bulk add link entries to database."""
 
         link_models = [LinkModel(**_.model_dump()) for _ in links]
         #self.session.add_all(link_models)
         LinkDataManager(self.session).add_links(link_models)
-    
 
     def get_links(self, params) -> Response[LinkSchema]:
         """Select links with values for offset and limit."""
@@ -59,7 +57,6 @@ class LinkService(BaseService):
 
         return links
 
-    
     def get_link(self, id: uuid.UUID | None = None, url: str | None = None, params: RequestParameters | None = None) -> Response[LinkSchema]:
         """Get link by ID."""
 
@@ -69,7 +66,6 @@ class LinkService(BaseService):
             link = LinkDataManager(self.session).get_link("url", url, params)
 
         return link
-
 
     def ingest_links(self, sources, params: RequestParameters | None = None):
         sources = sources.split(",")
@@ -120,7 +116,6 @@ class LinkDataManager(BaseDataManager):
 
         count = self.count(base_statement)
         return Response.wrap(items=schemas, total=count, page=params.page, page_size=params.page_size)
-    
 
     def get_link(self, field, value, params: RequestParameters | None = None) -> Response[LinkSchema]:
         """Run select statement for a single link."""
