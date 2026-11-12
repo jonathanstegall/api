@@ -99,13 +99,11 @@ class LinkDataManager(BaseDataManager):
 
         self.add_one(link)
 
-
     def add_links(self, link_models: LinkModel) -> None:
         """Bulk write links to database."""
 
         self.add_all(link_models)
         #return result
-
 
     def get_links(self, base_statement, statement, params: RequestParameters | None = None) -> Response[LinkSchema]:
         """Run select statement for multiple links."""
@@ -128,6 +126,3 @@ class LinkDataManager(BaseDataManager):
             return Response.wrap(items=[LinkSchema(**model.to_dict())], total=count, page=params.page, page_size=params.page_size)
         except Exception:
             raise Exception()
-
-
-    
