@@ -4,6 +4,7 @@ from typing import List
 from fastapi import (
     APIRouter,
     Depends,
+    HTTPException,
 )
 from sqlalchemy.orm import Session
 
@@ -29,7 +30,7 @@ async def get_link(
     url: str | None = None,
     params: RequestParameters = Depends(),
     session: Session = Depends(create_session),
-) -> LinkSchema:
+) -> Response[LinkSchema]:
     """Get a single link."""
     link = LinkService(session).get_link(id, url, params)
     return link
@@ -39,9 +40,10 @@ async def get_link(
 async def get_links(
     sources: str,
     params: RequestParameters = Depends(),
-    session: Session = Depends(create_session)
-    ):
+    session: Session = Depends(create_session),
+):
     """Ingest links from a source."""
-    links = LinkService(session).ingest_links(sources, params)
-    return links
+    links_response = LinkService(session).ingest_links(sources, params)
+    return links_response
+
 

@@ -17,10 +17,9 @@ class AppError(Exception):
     details: Optional[Dict[str, Any]] = None
     retryable: bool = False
 
-    def __init__(self, error_type: str, message: str, *, status_code: int = None, details: Optional[Dict[str, Any]] = None, retryable: bool = False):
+    def __init__(self, error_type: str, message: str, *, details: Optional[Dict[str, Any]] = None, retryable: bool = False):
         self.error_type = error_type
         self.message = message
-        self.status_code = status_code
         self.details = details or {}
         self.retryable = retryable
 
@@ -29,7 +28,6 @@ class AppError(Exception):
         return {
             "error": {
                 "type": self.error_type,
-                "status_code": self.status_code,
                 "message": self.message,
                 "details": self.details if self.details else None,
             }
@@ -42,17 +40,17 @@ class HTTPExceptionFromAppError(HTTPException):
     Usage: `raise HTTPExceptionFromAppError(app_error)` from routers.
     """
     def __init__(self, app_error: AppError):
-        if status_code is not None:
-            status_code = {
-                "NotFoundError": 404,
-                "BadRequestError": 400,
-                "ValidationError": 422,
-                "ForbiddenError": 403,
-                "UnauthorizedError": 401,
-                "InternalServerError": 500,
-                "ServiceUnavailableError": 503,
-                # ExternalApiError, CacheError variants default to 502/503
-            }.get(app_error.error_type, 500)
+        status_code = {
+            "NotFoundError": 404,
+            "BadRequestError": 400,
+            "ValidationError": 422,
+            "ForbiddenError": 403,
+            "UnauthorizedError": 401,
+            "InternalServerError": 500,
+            "ServiceUnavailableError": 503,
+            "ConflictError": 409,
+            # ExternalApiError, CacheError variants default to 502/503
+        }.get(app_error.error_type, 500)
         super().__init__(
             status_code=status_code,
             detail=app_error.to_dict()
@@ -245,6 +243,11 @@ class DatabaseError(Exception):
     def __init__(self, message: str, *, operation: str):
         self.message = message
         self.operation = operation
+
+class DatabaseConstraintError(DatabaseError):
+    """Database constraint violation error (e.g., unique key violation)."""
+    def __init__(self, message: str, *, operation: str):
+        super().__init__(message, operation=operation)
 
 class CacheConnectionError(Exception):
     """Redis connection error."""

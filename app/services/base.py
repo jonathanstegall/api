@@ -9,11 +9,12 @@ from sqlalchemy import (
     func,
     select,
 )
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import Executable
 
 from app.models.base import SQLModel
-from app.exceptions import DatabaseError
+from app.exceptions import DatabaseError, DatabaseConstraintError
 
 
 class SessionMixin:
@@ -33,6 +34,11 @@ class BaseDataManager(SessionMixin):
     def add_one(self, model: Any) -> None:
         try:
             self.session.add(model)
+            # Commit immediately to detect IntegrityError (unique constraint violation)
+            self.session.commit()
+        except IntegrityError as e:
+            self.session.rollback()
+            raise DatabaseConstraintError(f"Failed to add model due to unique constraint violation: {e}", operation="add_one") from e
         except Exception as e:
             # Rollback on error
             self.session.rollback()
@@ -41,6 +47,11 @@ class BaseDataManager(SessionMixin):
     def add_all(self, models: Sequence[Any]) -> None:
         try:
             self.session.add_all(models)
+            # Commit immediately to detect IntegrityError (unique constraint violation)
+            self.session.commit()
+        except IntegrityError as e:
+            self.session.rollback()
+            raise DatabaseConstraintError(f"Failed to add models due to unique constraint violation: {e}", operation="add_all") from e
         except Exception as e:
             # Rollback on error
             self.session.rollback()

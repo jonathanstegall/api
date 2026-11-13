@@ -19,6 +19,8 @@ from app.services.base import (
     BaseService,
 )
 
+from app.exceptions import DatabaseConstraintError
+
 
 class LinkService(BaseService):
 
@@ -85,12 +87,27 @@ class LinkService(BaseService):
                 links.append(link)
 
         #for link in links:
-        schemas: List[LinkSchema] = list()        
+        schemas: List[LinkSchema] = list()
         for model in links:
             schemas += [LinkSchema(**model)]
-            
-        self.create_links(schemas)
-        return schemas
+
+        try:
+            self.create_links(schemas)
+        except DatabaseConstraintError as e:
+            # Convert to ConflictError → HTTPExceptionFromAppError
+            from app.exceptions import ConflictError, HTTPExceptionFromAppError
+            conflict_error = ConflictError(
+                f"Duplicate record detected while ingesting links",
+                details={"constraint_error": str(e), "source": sources},
+            )
+            raise HTTPExceptionFromAppError(conflict_error) from e
+
+        from app.schemas.response import Response
+        # Match get_links response format
+        if params:
+            return Response.wrap(items=schemas, total=len(schemas), page=params.page, page_size=params.page_size)
+        else:
+            return Response.wrap(items=schemas, total=len(schemas), page=1, page_size=None)
 
 
 class LinkDataManager(BaseDataManager):
@@ -109,7 +126,7 @@ class LinkDataManager(BaseDataManager):
     def get_links(self, base_statement, statement, params: RequestParameters | None = None) -> Response[LinkSchema]:
         """Run select statement for multiple links."""
 
-        schemas: List[LinkSchema] = list()        
+        schemas: List[LinkSchema] = list()
         for model in self.get_all(statement):
             schemas += [LinkSchema(**model.to_dict())]
 
@@ -127,3 +144,4 @@ class LinkDataManager(BaseDataManager):
             return Response.wrap(items=[LinkSchema(**model.to_dict())], total=count, page=params.page, page_size=params.page_size)
         except Exception:
             raise Exception()
+
