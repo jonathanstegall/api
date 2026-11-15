@@ -147,8 +147,12 @@ class LinkDataManager(BaseDataManager):
         statement = select(LinkModel).where(getattr(LinkModel, field) == value)
         model = self.get_one(statement)
 
+        schemas: List[LinkSchema] = list()
+        for model in self.get_all(statement):
+            schemas += [LinkSchema(**model.to_dict())]
+
         count = self.count(statement)
-        return Response.wrap(items=[LinkSchema(**model.to_dict())], total=count, page=params.page, page_size=params.page_size)
+        return Response.wrap(items=schemas, total=count, page=params.page, page_size=params.page_size)
 
 
 
