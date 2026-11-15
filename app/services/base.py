@@ -53,6 +53,29 @@ class BaseService(SessionMixin):
         )
         raise conflict_error from constraint_error
 
+    def _handle_database_error(self, database_error: DatabaseError, *, source: str | None = None, extra_details: dict | None = None) -> None:
+        """Handle database operation failure by raising ServiceUnavailableError.
+
+        For transient errors like connection failures or temporary database downtime,
+        ServiceUnavailableError (503, retryable=True) is appropriate.
+
+        Args:
+            database_error: The DatabaseError raised by BaseDataManager.
+            source: Optional source identifier (e.g., "raindrop").
+            extra_details: Optional additional details to include in error details.
+        """
+        from app.exceptions import ServiceUnavailableError
+        service_unavailable_error = ServiceUnavailableError(
+            f"Database operation failed: {database_error.message}",
+            details={
+                "database_error": str(database_error),
+                "operation": database_error.operation,
+                "source": source,
+                **(extra_details or {})
+            },
+        )
+        raise service_unavailable_error from database_error
+
 
 
 

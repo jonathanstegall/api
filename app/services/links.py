@@ -18,7 +18,7 @@ from app.services.base import (
     BaseDataManager,
     BaseService,
 )
-from app.exceptions import DatabaseConstraintError
+from app.exceptions import DatabaseConstraintError, DatabaseError
 
 
 class LinkService(BaseService):
@@ -54,19 +54,28 @@ class LinkService(BaseService):
 
         statement = base_statement.offset(offset).limit(limit)
 
-        links = LinkDataManager(self.session).get_links(base_statement, statement, params)
-
-        return links
+        try:
+            links = LinkDataManager(self.session).get_links(base_statement, statement, params)
+            return links
+        except DatabaseError as e:
+            # Handle database connection failures, downtime, etc. -> ServiceUnavailableError (503)
+            self._handle_database_error(e, source=None)
 
     def get_link(self, id: uuid.UUID | None = None, url: str | None = None, params: RequestParameters | None = None) -> Response[LinkSchema]:
         """Get link by ID."""
 
-        if id is not None:
-            link = LinkDataManager(self.session).get_link("id", id, params)
-        elif url is not None:
-            link = LinkDataManager(self.session).get_link("url", url, params)
-
-        return link
+        try:
+            if id is not None:
+                link = LinkDataManager(self.session).get_link("id", id, params)
+            elif url is not None:
+                link = LinkDataManager(self.session).get_link("url", url, params)
+            return link
+        except DatabaseConstraintError as e:
+            # Use the base service method to handle constraint errors consistently
+            self._handle_database_constraint_error(e, source=None)
+        except DatabaseError as e:
+            # Handle database connection failures, downtime, etc. -> ServiceUnavailableError (503)
+            self._handle_database_error(e, source=None)
 
     def ingest_links(self, sources, params: RequestParameters | None = None):
         """Ingest links from a source."""
@@ -95,6 +104,9 @@ class LinkService(BaseService):
         except DatabaseConstraintError as e:
             # Use the base service method to handle constraint errors consistently
             self._handle_database_constraint_error(e, source=sources)
+        except DatabaseError as e:
+            # Handle database connection failures, downtime, etc. -> ServiceUnavailableError (503)
+            self._handle_database_error(e, source=sources)
         except Exception as e:
             raise
 
@@ -132,14 +144,11 @@ class LinkDataManager(BaseDataManager):
     def get_link(self, field, value, params: RequestParameters | None = None) -> Response[LinkSchema]:
         """Run select statement for a single link."""
 
-        try:
-            statement = select(LinkModel).where(getattr(LinkModel, field) == value)
-            model = self.get_one(statement)
+        statement = select(LinkModel).where(getattr(LinkModel, field) == value)
+        model = self.get_one(statement)
 
-            count = self.count(statement)
-            return Response.wrap(items=[LinkSchema(**model.to_dict())], total=count, page=params.page, page_size=params.page_size)
-        except Exception:
-            raise Exception()
+        count = self.count(statement)
+        return Response.wrap(items=[LinkSchema(**model.to_dict())], total=count, page=params.page, page_size=params.page_size)
 
 
 
