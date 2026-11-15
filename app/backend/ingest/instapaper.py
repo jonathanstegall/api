@@ -103,7 +103,7 @@ class Instapaper(Link):
             "type": "bookmark",
             "id": str(uuid.uuid4()),
             "source_id": str(bookmark["id"]),
-            "date": None,
+            "date": bookmark["pubtime"],
             "url": bookmark["url"],
             "data": json.dumps(bookmark),
             "title": bookmark.get("title", bookmark["url"]),
