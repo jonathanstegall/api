@@ -1,10 +1,9 @@
 import uuid
-from typing import List
+from typing import Any
 
 from fastapi import (
     APIRouter,
     Depends,
-    HTTPException,
 )
 from sqlalchemy.orm import Session
 
@@ -14,15 +13,19 @@ from app.schemas.response import Response
 from app.schemas.links import LinkSchema
 from app.services.links import LinkService
 
+from app.exceptions import AppError, HTTPExceptionFromAppError
 
 router = APIRouter()
 
 @router.get("/links/")
 async def get_links(params: RequestParameters = Depends(), session: Session = Depends(create_session)):
     """Get multiple links."""
-    links = LinkService(session).get_links(params)
-    return links
-
+    service = LinkService(session)
+    try:
+        result = service.get_links(params)
+        return result
+    except AppError as e:
+        raise HTTPExceptionFromAppError(e) from e
 
 @router.get("/link/", response_model=Response[LinkSchema])
 async def get_link(
@@ -32,18 +35,23 @@ async def get_link(
     session: Session = Depends(create_session),
 ) -> Response[LinkSchema]:
     """Get a single link."""
-    link = LinkService(session).get_link(id, url, params)
-    return link
-
+    service = LinkService(session)
+    try:
+        result = service.get_link(id, url, params)
+        return result
+    except AppError as e:
+        raise HTTPExceptionFromAppError(e) from e
 
 @router.post("/links/ingest")
-async def get_links(
+async def ingest_links(
     sources: str,
     params: RequestParameters = Depends(),
     session: Session = Depends(create_session),
 ):
-    """Ingest links from a source."""
-    links_response = LinkService(session).ingest_links(sources, params)
-    return links_response
-
-
+    """Ingest links from an API."""
+    service = LinkService(session)
+    try:
+        result = service.ingest_links(sources, params)
+        return result
+    except AppError as e:
+        raise HTTPExceptionFromAppError(e) from e

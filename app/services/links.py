@@ -18,7 +18,6 @@ from app.services.base import (
     BaseDataManager,
     BaseService,
 )
-
 from app.exceptions import DatabaseConstraintError
 
 
@@ -94,13 +93,10 @@ class LinkService(BaseService):
         try:
             self.create_links(schemas)
         except DatabaseConstraintError as e:
-            # Convert to ConflictError → HTTPExceptionFromAppError
-            from app.exceptions import ConflictError, HTTPExceptionFromAppError
-            conflict_error = ConflictError(
-                f"Duplicate record detected while ingesting links",
-                details={"constraint_error": str(e), "source": sources},
-            )
-            raise HTTPExceptionFromAppError(conflict_error) from e
+            # Use the base service method to handle constraint errors consistently
+            self._handle_database_constraint_error(e, source=sources)
+        except Exception as e:
+            raise
 
         from app.schemas.response import Response
         # Match get_links response format
@@ -144,4 +140,7 @@ class LinkDataManager(BaseDataManager):
             return Response.wrap(items=[LinkSchema(**model.to_dict())], total=count, page=params.page, page_size=params.page_size)
         except Exception:
             raise Exception()
+
+
+
 

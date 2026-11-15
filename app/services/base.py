@@ -27,6 +27,34 @@ class SessionMixin:
 class BaseService(SessionMixin):
     """Base class for application services."""
 
+    def __init__(self, session: Session):
+        super().__init__(session)
+
+    def _handle_database_constraint_error(self, constraint_error: DatabaseConstraintError, *, source: str | None = None, extra_details: dict | None = None) -> None:
+        """Handle database constraint violation by raising AppError.
+
+        This method converts DatabaseConstraintError (unique constraint violation) to
+        ConflictError (an AppError), returning proper JSON error details. The router layer
+        will convert ConflictError → HTTPExceptionFromAppError with HTTP 409.
+
+        Args:
+            constraint_error: The DatabaseConstraintError raised by BaseDataManager.
+            source: Optional source identifier (e.g., "instapaper").
+            extra_details: Optional additional details to include in error details.
+        """
+        from app.exceptions import ConflictError
+        conflict_error = ConflictError(
+            "Duplicate record detected",
+            details={
+                "constraint_error": str(constraint_error),
+                "source": source,
+                **(extra_details or {})
+            },
+        )
+        raise conflict_error from constraint_error
+
+
+
 
 class BaseDataManager(SessionMixin):
     """Base data manager class responsible for operations over database."""
@@ -58,9 +86,15 @@ class BaseDataManager(SessionMixin):
             raise DatabaseError(f"Failed to add models: {e}", operation="add_all") from e
 
     def count(self, query: Executable) -> Any:
-        count = self.session.scalar(select(func.count()).select_from(query))
-        return count
-    
+        # In SQLAlchemy 2.0, query might be a Select object with modifiers (offset/limit).
+        # Use .subquery() to convert it to a subquery that can be used as a FROM clause.
+        subq = query.subquery()
+        from sqlalchemy import func
+        result = self.session.execute(select(func.count()).select_from(subq))
+        return result.scalar()
+
+
+
     def get_one(self, select_stmt: Executable) -> Any:
         try:
             result = self.session.scalar(select_stmt)
@@ -106,3 +140,4 @@ class BaseDataManager(SessionMixin):
         fn = getattr(getattr(func, model.schema()), model.table_name())
         stmt = select(fn(*args).table_valued(*model.fields()))
         return select(model).from_statement(stmt)
+
