@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from starlette.responses import JSONResponse
 
-from app.backend.cache.cache import get_schema, set_schema, cache_key_builder
+from app.backend.cache.cache import cache_key_builder, delete_json
 from app.backend.ingest.tumblr import Tumblr
 from app.backend.ingest.instapaper import Instapaper
 from app.backend.ingest.raindrop import Raindrop
