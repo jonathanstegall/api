@@ -9,6 +9,8 @@ from sqlalchemy.orm import (
 
 from app.models.base import SQLModel
 
+from typing import Optional
+
 class LinkModel(SQLModel):
     __tablename__ = "link"
     #__table_args__ = {"schema": "myapi"}
@@ -26,4 +28,4 @@ class LinkModel(SQLModel):
     referrer: Mapped[str] = mapped_column("referrer")
     format: Mapped[str] = mapped_column("format")
     text: Mapped[str] = mapped_column("text")
-    data: Mapped[str] = mapped_column("data")
+    data: Mapped[Optional[str]] = mapped_column("data")

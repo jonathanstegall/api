@@ -16,6 +16,7 @@ class LinkSchema(BaseSchema):
     creator: str | None = None
     referrer: str | None = None
     text: str | None = None
+    data: str | None = None
     saved_date: datetime | None = None
     created_at: datetime | None = None
     format: str | None = None
