@@ -25,13 +25,23 @@ fileConfig(config.config_file_name)
 # target_metadata = mymodel.Base.metadata
 # target_metadata = None
 
-from app.models import SQLModel  # noqa
-from app.core.config import settings # noqa
+from app.models.base import SQLModel  # noqa
+from app.models.links import LinkModel  # noqa
+from app.config import config as app_config  # noqa
 
 target_metadata = SQLModel.metadata
 
 def get_url():
-    return str(settings.SQLALCHEMY_DATABASE_URI)
+    from sqlalchemy import URL
+    url = URL.create(
+        app_config.database.dialect,
+        username=app_config.database.user,
+        password=app_config.database.password,
+        host=app_config.database.host,
+        port=app_config.database.port,
+        database=app_config.database.name
+    )
+    return str(url)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
