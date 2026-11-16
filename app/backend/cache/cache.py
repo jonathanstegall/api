@@ -58,6 +58,17 @@ def set_json(key: str, value: dict, ttl_seconds: int = config.cache.ttl) -> None
         raise CacheWriteError(f"Failed to write JSON to cache ('{key}'): {e}", cache_key=key) from e
 
 
+def delete_json(key: str) -> None:
+    try:
+        redis_client.execute_command("JSON.DROP", key, "$")
+        redis_client.delete(key)
+    except redis.ConnectionError as e:
+        raise CacheConnectionError(f"Redis connection error for cache delete ('{key}'): {e}") from e
+    except Exception as e:
+        # JSON parsing error is a read error
+        raise CacheReadError(f"Failed to read JSON from cache ('{key}'): {e}", cache_key=key) from e
+
+
 def get_schema(key: str, schema: Type[T]) -> Optional[T]:
     data = get_json(key)
     if data is None:
