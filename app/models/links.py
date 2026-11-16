@@ -1,15 +1,16 @@
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 from pydantic import AnyHttpUrl
 from app.backend.database.adapters import HttpUrlType
 from sqlalchemy.orm import (
     Mapped,
     mapped_column,
 )
+from sqlalchemy import String
 
 from app.models.base import SQLModel
 
-from typing import Optional
 
 class LinkModel(SQLModel):
     __tablename__ = "link"
@@ -28,4 +29,4 @@ class LinkModel(SQLModel):
     referrer: Mapped[str] = mapped_column("referrer")
     format: Mapped[str] = mapped_column("format")
     text: Mapped[str] = mapped_column("text")
-    data: Mapped[Optional[str]] = mapped_column("data")
+    data: Mapped[Optional[str]] = mapped_column(String(length=65535), nullable=True)
