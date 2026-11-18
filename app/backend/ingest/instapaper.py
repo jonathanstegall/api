@@ -1,6 +1,7 @@
 import json
 import uuid
 import requests
+from datetime import datetime
 from app.config import config
 from app.backend.ingest.link import Link
 
@@ -9,13 +10,19 @@ class Instapaper(Link):
     source = "instapaper"
     version = "2"
     url: str | None = f"https://www.instapaper.com/api/"
+    date_format = "%Y-%m-%d"
 
     options = Link.options
     
     options[source] = {
         "type": "bookmark",
-        "have": [],
-        "folder_id": "unread"
+        "section": "home",
+        "folder_id": None,
+        "folder_name": None,
+        "tag": None,
+        "limit": config.instapaper.limit,
+        "offset": 0,
+        "since": None
     }
 
     # headers
@@ -56,41 +63,55 @@ class Instapaper(Link):
     def get_bookmarks(self, options = None):
         """Retrieve bookmarks, optionally from a specific Instapaper folder by its name."""
         
-        request_data = {}
+        params = {}
 
-        limit = options.get("limit", config.instapaper.limit)
-        tag = options.get("tag", None)
+        section = options.get("section", "home")
         folder_name = options.get("folder_name", None)
-        highlights = options.get("highlights", None)
-        have = options.get("have", None)
+        tag = options.get("tag", None)
+        limit = options.get("limit", config.instapaper.limit)
+        offset = options.get("offset", 0)
+        since = options.get("since", None)
 
-        if limit is not None:
-            request_data["limit"] = limit
+        if section is None and tag is not None:
+            section = "tag"
+
+        if section is None and folder_name is not None:
+            section = "folder"
+
+        if since is not None:
+            section = None
+
+        if folder_name is not None and tag is not None:
+            raise Exception(f"A request cannot have both a folder and a tag. This request has folder {folder_name} and tag {tag}")
+
+        if section is not None:
+            params["section"] = section
 
         if folder_name is not None:
             # Get the numerical ID of the folder
             folder_id = self.get_folder_id(folder_name)
             if not folder_id:
                 raise Exception(f"No such folder named {folder_name}")
-            request_data["folder_id"] = folder_id
+            params["folder_id"] = folder_id
 
-        if folder_name is None and tag is not None:
-            request_data["tag"] = tag
+        if tag is not None:
+            params["tag"] = tag
 
-        if have is not None:
-            if isinstance(have, str):
-                have = [have]
-            request_data["have"] = ','.join(have)
-        
-        if highlights is not None:
-            request_data["highlights"] = highlights
+        if limit is not None:
+            params["limit"] = limit
+
+        if offset is not None:
+            params["offset"] = offset
+
+        if since is not None:
+            dt = datetime.strptime(since, self.date_format)
+            params["since"] = dt.timestamp()        
 
         # Fetch bookmarks
         url = f"{self.url}{self.version}/bookmarks"
 
         # api call
-        response = requests.get(url, headers=self.headers).json()
-        # TODO: handle paging more than 500 bookmarks
+        response = requests.get(url, headers=self.headers, params=params).json()
         if response["total"] > 0:
             return response
         else:
