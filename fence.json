@@ -1,0 +1,10 @@
+{
+  "extends": "@base",
+  "network": {
+    "allowedDomains": [
+        "developer.raindrop.io",
+        "instapaper.com",
+        "tumblr.com"
+    ]
+  }
+}
