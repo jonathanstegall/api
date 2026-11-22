@@ -1,0 +1,6 @@
+name: jonathanstegall.api
+
+database:
+  type: postgres
+  name: api.jonathanstegall
+  createOnLink: true

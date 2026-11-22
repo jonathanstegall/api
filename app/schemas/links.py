@@ -54,5 +54,3 @@ class UpdateLinkSchema(BaseSchema):
     saved_date: datetime | None
     format: str | None
     updated_at: datetime
-
-

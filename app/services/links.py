@@ -1,24 +1,24 @@
 import uuid
-from typing import List, Annotated
+from typing import List
 
 from sqlalchemy import select
 
-from starlette.responses import JSONResponse
+from app.config import config
 
-from app.backend.cache.cache import cache_key_builder, delete_json
 from app.backend.ingest.tumblr import Tumblr
 from app.backend.ingest.instapaper import Instapaper
 from app.backend.ingest.raindrop import Raindrop
 
 from app.models.links import LinkModel
-from app.dependencies.parameters import RequestParameters
+from app.dependencies.parameters import RequestParameters, IngestionParameters
 from app.schemas.response import Response
 from app.schemas.links import CreateLinkSchema, LinkSchema
 from app.services.base import (
     BaseDataManager,
     BaseService,
 )
-from app.exceptions import DatabaseConstraintError, DatabaseError, NotFoundError
+
+from app.exceptions import (DatabaseConstraintError, DatabaseError, NotFoundError, ParamValidationError, BadRequestError)
 
 
 class LinkService(BaseService):
@@ -92,45 +92,79 @@ class LinkService(BaseService):
             self._handle_database_error(e, source=None)
 
 
-    def ingest_links(self, sources, params: RequestParameters | None = None):
-        """Ingest links from a source."""
-        sources = sources.split(",")
-        links = []
+    def ingest(self, sources_list: List[str], params: IngestionParameters) -> Response[LinkSchema]:
+        """Ingest links from the requested sources.
 
-        if "raindrop" in sources:
-            for link in Raindrop().get_links():
-                links.append(link)
+        Validate the parameters, make the calls to the third-party APIs, convert the results to schemas, 
+        create the individual link, and return a response.
+        """
+        # ensure sources are valid
+        valid_sources = {"raindrop", "tumblr", "instapaper"}
+        for s in sources_list:
+            if s not in valid_sources:
+                raise BadRequestError(f"Invalid source: {s}. Valid sources are: {', '.join(sorted(valid_sources))}")
 
-        if "tumblr" in sources:
-            for link in Tumblr().get_links():
-                links.append(link)
+        # source limits from config
+        source_limits = {
+            "raindrop": config.raindrop.limit,
+            "tumblr": config.tumblr.limit,
+            "instapaper": config.instapaper.limit,
+        }
 
-        if "instapaper" in sources:
-            for link in Instapaper().get_links():
-                links.append(link)
+        # don't let page_size exceed the smallest limit from the relevant source(s)
+        min_source_limit = min(source_limits[s] for s in sources_list)
+        if params.page_size is not None and params.page_size > min_source_limit:
+            raise ParamValidationError(
+                f"Page size value ({params.page_size}) cannot exceed {min_source_limit} because it is the smallest limit allowed for the requested sources"
+            )
 
-        #for link in links:
-        schemas: List[LinkSchema] = list()
+        # for each source in source_options, the 'limit' option should not exceed that source's limit
+        if params.source_options:
+            for source_name, options in params.source_options.items():
+                if source_name not in valid_sources:
+                    # ignore a source in source_options that isn't in the sources_list
+                    pass
+                if "limit" in options and options["limit"] is not None:
+                    source_limit = source_limits.get(source_name)
+                    if source_limit is not None and options["limit"] > source_limit:
+                        raise ParamValidationError(
+                            f"Limit for source {source_name} ({options['limit']}) cannot exceed the source limit ({source_limit})"
+                        )
+
+        # get an instance of the source objects and call get_links
+        links = []  # list of formatted link dicts from the API objects
+        for source_name in sources_list:
+            if source_name == "raindrop":
+                obj = Raindrop()
+                obj_links = obj.get_links(params)
+                links.extend(obj_links)
+            elif source_name == "tumblr":
+                obj = Tumblr()
+                obj_links = obj.get_links(params)
+                links.extend(obj_links)
+            elif source_name == "instapaper":
+                obj = Instapaper()
+                obj_links = obj.get_links(params)
+                links.extend(obj_links)
+
+        # convert links to schemas
+        schemas: List[LinkSchema] = []
         for model in links:
-            schemas += [LinkSchema(**model)]
+            schemas.append(LinkSchema(**model))
 
+        # Create links in the database
         try:
             self.create_links(schemas)
         except DatabaseConstraintError as e:
             # Use the base service method to handle constraint errors consistently
-            self._handle_database_constraint_error(e, source=sources)
+            self._handle_database_constraint_error(e, source=sources_list)
         except DatabaseError as e:
             # Handle database connection failures, downtime, etc. -> ServiceUnavailableError (503)
-            self._handle_database_error(e, source=sources)
-        except Exception as e:
-            raise
+            self._handle_database_error(e, source=sources_list)
 
         from app.schemas.response import Response
-        # Match get_links response format
-        if params:
-            return Response.wrap(items=schemas, total=len(schemas), page=params.page, page_size=params.page_size)
-        else:
-            return Response.wrap(items=schemas, total=len(schemas), page=1, page_size=None)
+        # the return needs to match the get_links response format
+        return Response.wrap(items=schemas, total=len(schemas), page=params.page, page_size=params.page_size)
 
 
 class LinkDataManager(BaseDataManager):
@@ -171,7 +205,3 @@ class LinkDataManager(BaseDataManager):
 
         count = self.count(statement)
         return Response.wrap(items=schemas, total=count, page=params.page, page_size=params.page_size)
-
-
-
-

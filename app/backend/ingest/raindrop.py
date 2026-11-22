@@ -95,7 +95,7 @@ class Raindrop(Link):
         sort = options.get("sort", "-created")
         page = options.get("page", None)
         perpage = options.get("perpage", config.raindrop.limit)
-        ids = options.get("reblog_info", [])
+        ids = options.get("ids", [])
         nested = options.get("nested", False)
 
         #payload = {'key1': 'value1', 'key2': 'value2'}
@@ -131,6 +131,62 @@ class Raindrop(Link):
             raise Exception(f"Failed to fetch raindrop: {response["result"]}")
         
 
+    def _apply_ingest_params(self, params):
+        """Apply ingestion parameters to the source-specific options."""
+        if self.source is None or self.source not in self.options:
+            return
+        base_opt = self.options[self.source]
+        # Get source-specific options from URL params (if any)
+        source_opts = params.source_options.get(self.source) if params.source_options else None
+        if source_opts is not None:
+            # Copy base_opt to avoid mutating the shared class dict
+            opt = base_opt.copy()
+            # Update opt with source-specific keys from source_opts
+            for k, v in source_opts.items():
+                opt[k] = v
+        else:
+            opt = base_opt
+
+        # ID
+        id = source_opts.get('id') if source_opts is not None else None
+        if id is not None:
+            opt["id"] = id
+
+        # collection ID
+        collection_id = source_opts.get('collection_id') if source_opts is not None else None
+        if collection_id is not None:
+            opt["collectionId"] = collection_id
+
+        # search
+        search = source_opts.get('search') if source_opts is not None else None
+        if search is not None:
+            opt["search"] = search
+        
+        # sort
+        sort = source_opts.get('sort', "-created") if source_opts is not None else "-created"
+        if source_opts is not None and sort != "-created":
+            opt["sort"] = sort
+
+        # Pagination (always set when params is provided)
+        page = source_opts.get('page') if source_opts is not None else None
+        page_size = source_opts.get('page_size') if source_opts is not None else None
+        if page is not None and page_size is not None:
+            if page_size > config.raindrop.limit:
+                page_size = config.raindrop.limit
+            opt["page"] = page
+            opt["perpage"] = page_size
+
+        # IDs
+        ids = source_opts.get('ids', []) if source_opts is not None else []
+        if ids:
+            opt["ids"] = ids
+        
+        # nested
+        nested = source_opts.get('nested', False) if source_opts is not None else False
+        if source_opts is not None and nested is not False:
+            opt["nested"] = str(nested)
+    
+    
     def format_post_as_link(self, raindrop):
         
         raindrop_date = None
