@@ -11,7 +11,7 @@ from app.backend.ingest.instapaper import Instapaper
 from app.backend.ingest.raindrop import Raindrop
 
 from app.models.links import LinkModel
-from app.dependencies.parameters import RequestParameters
+from app.dependencies.parameters import RequestParameters, IngestionParameters
 from app.schemas.response import Response
 from app.schemas.links import CreateLinkSchema, LinkSchema
 from app.services.base import (
@@ -92,21 +92,27 @@ class LinkService(BaseService):
             self._handle_database_error(e, source=None)
 
 
-    def ingest_links(self, sources, params: RequestParameters | None = None):
+    def ingest_links(self, sources, params: IngestionParameters | None = None):
         """Ingest links from a source."""
         sources = sources.split(",")
         links = []
 
         if "raindrop" in sources:
-            for link in Raindrop().get_links():
+            raindrop_obj = Raindrop()
+            raindrop_links = raindrop_obj.get_links(params)
+            for link in raindrop_links:
                 links.append(link)
 
         if "tumblr" in sources:
-            for link in Tumblr().get_links():
+            tumblr_obj = Tumblr()
+            tumblr_links = tumblr_obj.get_links(params)
+            for link in tumblr_links:
                 links.append(link)
 
         if "instapaper" in sources:
-            for link in Instapaper().get_links():
+            instapaper_obj = Instapaper()
+            instapaper_links = instapaper_obj.get_links(params)
+            for link in instapaper_links:
                 links.append(link)
 
         #for link in links:
