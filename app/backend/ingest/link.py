@@ -22,6 +22,7 @@ class Link:
     def __init__(self):
         self.source = self.__class__.source
 
+
     def get_links(self, params=None):
         """Get links from the source. Applies ingestion params and retrieves data."""
         if params is not None:
@@ -84,7 +85,6 @@ class Link:
         else:
             opt = base_opt
         # subclasses override to set their specific fields from `opt`
-
 
 
     def check_cache(self, options, source):

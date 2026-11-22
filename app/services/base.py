@@ -77,8 +77,6 @@ class BaseService(SessionMixin):
         raise service_unavailable_error from database_error
 
 
-
-
 class BaseDataManager(SessionMixin):
     """Base data manager class responsible for operations over database."""
 
@@ -115,8 +113,6 @@ class BaseDataManager(SessionMixin):
         from sqlalchemy import func
         result = self.session.execute(select(func.count()).select_from(subq))
         return result.scalar()
-
-
 
     def get_one(self, select_stmt: Executable) -> Any:
         try:
@@ -157,10 +153,8 @@ class BaseDataManager(SessionMixin):
 
         return self.get_all(self.select_from_tvf(model, *args))
 
-
     @staticmethod
     def select_from_tvf(model: Type[SQLModel], *args: Any) -> Executable:
         fn = getattr(getattr(func, model.schema()), model.table_name())
         stmt = select(fn(*args).table_valued(*model.fields()))
         return select(model).from_statement(stmt)
-
