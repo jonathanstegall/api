@@ -100,6 +100,75 @@ class Tumblr(Link):
             return response
         else:
             raise Exception(f"Failed to fetch posts: {response["meta"]["msg"]} with status {response["meta"]["status"]}")
+
+
+    def _apply_ingest_params(self, params):
+        """Apply ingestion parameters to the source-specific options."""
+        if self.source is None or self.source not in self.options:
+            return
+        base_opt = self.options[self.source]
+        # Get source-specific options from URL params (if any)
+        source_opts = params.source_options.get(self.source) if params.source_options else None
+        if source_opts is not None:
+            # Copy base_opt to avoid mutating the shared class dict
+            opt = base_opt.copy()
+            # Update opt with source-specific keys from source_opts
+            for k, v in source_opts.items():
+                opt[k] = v
+        else:
+            opt = base_opt
+        
+        # ID
+        id = source_opts.get('id') if source_opts is not None else None
+        if id is not None:
+            opt["id"] = id
+        
+        # Tags
+        tag = source_opts.get('tag') if source_opts is not None else None
+        if tag is not None:
+            tags = " ".join(str(t) for t in tag) if isinstance(tag, list) else str(tag)
+            opt["tag"] = tags
+        
+        # Pagination
+        page = source_opts.get('page') if source_opts is not None else None
+        page_size = source_opts.get('page_size') if source_opts is not None else None
+        if page is not None and page_size is not None:
+            opt["offset"] = (page - 1) * page_size
+            opt["limit"] = page_size
+
+        offset = source_opts.get('offset') if source_opts is not None else None
+        limit = source_opts.get('limit') if source_opts is not None else None
+        if offset is not None and limit is not None:
+            opt["offset"] = offset
+            opt["limit"] = limit
+
+        reblog_info = source_opts.get('reblog_info') if source_opts is not None else None
+        if reblog_info is not None and reblog_info is not False:
+            opt["reblog_info"] = str(reblog_info)
+
+        notes_info = source_opts.get('notes_info') if source_opts is not None else None
+        if notes_info is not None and notes_info is not False:
+            opt["notes_info"] = str(notes_info)
+
+        filter_val = source_opts.get('filter') if source_opts is not None else None
+        if filter_val is not None:
+            opt["filter"] = filter_val
+
+        before = source_opts.get('before') if source_opts is not None else None
+        if before is not None and before is not False:
+            opt["before"] = before
+
+        after = source_opts.get('after') if source_opts is not None else None
+        if after is not None and after is not False:
+            opt["after"] = after
+
+        sort = source_opts.get('sort', "desc") if source_opts is not None else "desc"
+        if source_opts is not None and sort != "desc":
+            opt["sort"] = sort
+
+        npf = source_opts.get('npf') if source_opts is not None else None
+        if npf is not None and npf != "npf":
+            opt["npf"] = npf
         
 
     def format_post_as_link(self, post):

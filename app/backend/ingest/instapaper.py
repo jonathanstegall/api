@@ -21,6 +21,8 @@ class Instapaper(Link):
         "folder_name": None,
         "tag": None,
         "limit": config.instapaper.limit,
+        "page": None,
+        "page_size": None,
         "offset": 0,
         "since": None
     }
@@ -39,6 +41,59 @@ class Instapaper(Link):
             options = options[self.source]
         )
         return posts
+
+
+    def _apply_ingest_params(self, params):
+        """Apply ingestion parameters to the source-specific options."""
+        if self.source is None or self.source not in self.options:
+            return
+        base_opt = self.options[self.source]
+        # Get source-specific options from URL params (if any)
+        source_opts = params.source_options.get(self.source) if params.source_options else None
+        if source_opts is not None:
+            # Copy base_opt to avoid mutating the shared class dict
+            opt = base_opt.copy()
+            # Update opt with source-specific keys from source_opts
+            for k, v in source_opts.items():
+                opt[k] = v
+        else:
+            opt = base_opt
+        
+        # Tag
+        tag = source_opts.get('tag') if source_opts is not None else None
+        if tag is not None:
+            opt["tag"] = tag
+        
+        # Folder
+        folder_name = source_opts.get('folder_name') if source_opts is not None else None
+        if folder_name is not None:
+            # Get the numeric ID of the folder
+            folder_id = self.get_folder_id(folder_name)
+            if not folder_id:
+                raise Exception(f"No such folder named {folder_name}")
+            opt["folder_id"] = folder_id
+
+        # Date filtering
+        since = source_opts.get('since') if source_opts is not None else None
+        if since is not None:
+            try:
+                dt = datetime.strptime(since, self.date_format)
+                opt["since"] = dt.timestamp()
+            except Exception:
+                pass
+        
+        # Pagination
+        page = source_opts.get('page') if source_opts is not None else None
+        page_size = source_opts.get('page_size') if source_opts is not None else None
+        if page is not None and page_size is not None:
+            opt["offset"] = (page - 1) * page_size
+            opt["limit"] = page_size
+
+        offset = source_opts.get('offset') if source_opts is not None else None
+        limit = source_opts.get('limit') if source_opts is not None else None
+        if offset is not None and limit is not None:
+            opt["offset"] = offset
+            opt["limit"] = limit
 
 
     def validate_response(self, response):
