@@ -22,6 +22,7 @@ class PaginationParams:
         self.page_size = page_size
         self.offset = (page - 1) * page_size
 
+
     def paginate(self, total: int) -> dict:
         """Calculate pagination metadata"""
         total_pages = (total + self.page_size - 1) // self.page_size
@@ -34,4 +35,3 @@ class PaginationParams:
             "has_next": self.page < total_pages,
             "has_prev": self.page > 1
         }
-

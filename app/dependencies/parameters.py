@@ -22,6 +22,3 @@ class IngestionParameters(RequestParameters):
     # Per-source options dict; maps source name -> dict of source-specific options
     # Example: {"raindrop": {"id": 123, "perpage": 20}, "instapaper": {"limit": 10}}
     source_options: dict[str, Any] | None = None
-
-# For backwards compatibility: Re-export the original RequestParameters name
-

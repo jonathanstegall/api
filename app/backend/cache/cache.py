@@ -32,6 +32,19 @@ def get_json(key: str) -> Optional[dict]:
         return data
     except redis.ConnectionError as e:
         raise CacheConnectionError(f"Redis connection error for cache read ('{key}'): {e}") from e
+    except redis.ResponseError as e:
+        # Check if it's a JSON unknown command error (e.g., Redis without JSON module)
+        if "unknown command" in str(e).lower() and "json" in str(e).lower():
+            # Fallback: get as string
+            raw_str = redis_client.get(key)
+            if raw_str is None:
+                return None
+            try:
+                return json.loads(raw_str)
+            except json.JSONDecodeError as e:
+                raise CacheReadError(f"Failed to read JSON from cache ('{key}'): {e}", cache_key=key) from e
+        else:
+            raise
     except Exception as e:
         # JSON parsing error is a read error
         raise CacheReadError(f"Failed to read JSON from cache ('{key}'): {e}", cache_key=key) from e
@@ -54,6 +67,17 @@ def set_json(key: str, value: dict, ttl_seconds: int = config.cache.ttl) -> None
             return value
     except redis.ConnectionError as e:
         raise CacheWriteError(f"Redis connection error for cache write ('{key}'): {e}", cache_key=key) from e
+    except redis.ResponseError as e:
+        # Check if it's a JSON unknown command error (e.g., Redis without JSON module)
+        if "unknown command" in str(e).lower() and "json" in str(e).lower():
+            # Fallback: set as string
+            redis_client.set(key, json.dumps(value))
+            if ttl_seconds:
+                redis_client.expire(key, ttl_seconds)
+            # Return value for consistency with native mode
+            return value
+        else:
+            raise
     except Exception as e:
         raise CacheWriteError(f"Failed to write JSON to cache ('{key}'): {e}", cache_key=key) from e
 
@@ -64,6 +88,13 @@ def delete_json(key: str) -> None:
         redis_client.delete(key)
     except redis.ConnectionError as e:
         raise CacheConnectionError(f"Redis connection error for cache delete ('{key}'): {e}") from e
+    except redis.ResponseError as e:
+        # Check if it's a JSON unknown command error (e.g., Redis without JSON module)
+        if "unknown command" in str(e).lower() and "json" in str(e).lower():
+            # Fallback: delete as string (just DEL the key)
+            redis_client.delete(key)
+        else:
+            raise
     except Exception as e:
         # JSON parsing error is a read error
         raise CacheReadError(f"Failed to read JSON from cache ('{key}'): {e}", cache_key=key) from e
