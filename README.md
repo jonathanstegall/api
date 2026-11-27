@@ -15,6 +15,7 @@ API for storing and accessing data from other sources
 - `JSON.SET bike $ '"Hyperion"'`
 
 ### Run the app
+- Review how UV works with FastAPI: https://docs.astral.sh/uv/guides/integration/fastapi/
 - `uv sync` then `source .venv/bin/activate` (`uv add requests` to install libraries)
 - `uv run fastapi dev` to start the app
 - `http://127.0.0.1:8000` is the url where the app runs
